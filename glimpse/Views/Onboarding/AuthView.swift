@@ -69,10 +69,6 @@ struct AuthView: View {
                         .frame(width: 8, height: 8)
 
                     Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 8, height: 8)
-
-                    Circle()
                         .fill(colorScheme == .dark ? Color(red: 0.35, green: 0.58, blue: 1.0) : Color(red: 0.83, green: 0.58, blue: 0.49))
                         .frame(width: 8, height: 8)
 
@@ -80,7 +76,13 @@ struct AuthView: View {
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 8, height: 8)
 
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 8, height: 8)
 
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 8, height: 8)
                 }
                 .padding(.bottom, 40)
                 
@@ -197,6 +199,15 @@ struct AuthView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
                 
+                // Hidden NavigationLink for programmatic navigation
+                NavigationLink(
+                    destination: PersonalizationView(),
+                    isActive: $navigateToPersonalization
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+
                 // Auth buttons
                 VStack(spacing: 16) {
                     // Email/Password button
@@ -358,9 +369,6 @@ struct AuthView: View {
             }
         }
         .navigationBarHidden(true)
-        .navigationDestination(isPresented: $navigateToPersonalization) {
-            PersonalizationView()
-        }
     }
     
     // MARK: - Auth Functions

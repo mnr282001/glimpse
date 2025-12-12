@@ -80,7 +80,9 @@ struct PersonalizationView: View {
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 8, height: 8)
 
-
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 8, height: 8)
                 }
                 .padding(.bottom, 40)
                 

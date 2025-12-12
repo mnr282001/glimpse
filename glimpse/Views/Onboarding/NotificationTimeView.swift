@@ -76,6 +76,10 @@ struct NotificationTimeView: View {
                     Circle()
                         .fill(colorScheme == .dark ? Color(red: 0.35, green: 0.58, blue: 1.0) : Color(red: 0.83, green: 0.58, blue: 0.49))
                         .frame(width: 8, height: 8)
+
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 8, height: 8)
                 }
                 .padding(.bottom, 40)
                 
@@ -137,10 +141,10 @@ struct NotificationTimeView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
                 
-                // Done button
-                
-                NavigationLink(destination: ContentView()) {
-                    Text("Done")
+                // Continue button
+
+                NavigationLink(destination: GoalsSetupView()) {
+                    Text("Continue")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
