@@ -64,20 +64,20 @@ struct NotificationTimeView: View {
                     Circle()
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 8, height: 8)
-                    
+
                     Circle()
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 8, height: 8)
-                    
+
                     Circle()
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 8, height: 8)
-                    
+
                     Circle()
                         .fill(colorScheme == .dark ? Color(red: 0.35, green: 0.58, blue: 1.0) : Color(red: 0.83, green: 0.58, blue: 0.49))
                         .frame(width: 8, height: 8)
                 }
-                .padding(.bottom, 50)
+                .padding(.bottom, 40)
                 
                 // Title and subtitle
                 VStack(spacing: 12) {
@@ -86,13 +86,13 @@ struct NotificationTimeView: View {
                         .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
-                    
+
                     Text("We'll send a gentle reminder each day.")
                         .font(.system(size: 17))
                         .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
                         .multilineTextAlignment(.center)
                 }
-                .padding(.bottom, 60)
+                .padding(.bottom, 40)
                 
                 // Time Picker
                 HStack {

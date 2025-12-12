@@ -13,10 +13,6 @@ struct ContentView: View {
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Top spacing
-                    Spacer()
-                        .frame(height: 60)
-                    
                     // App name with logo
                     HStack(spacing: 12) {
                         // Logo circle
@@ -26,32 +22,32 @@ struct ContentView: View {
                                       Color(red: 0.35, green: 0.58, blue: 1.0) :
                                         Color(red: 0.83, green: 0.58, blue: 0.49))
                                 .frame(width: 44, height: 44)
-                            
+
                             Image(systemName: "book.fill")
                                 .font(.system(size: 20))
                                 .foregroundColor(.white)
                         }
-                        
+
                         Text("Glimpse")
                             .font(.system(size: 28, weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
                     }
-                    .padding(.bottom, 20)
-                    
+                    .padding(.top, 20)
+
                     // Progress dots
                     HStack(spacing: 12) {
                         Circle()
                             .fill(colorScheme == .dark ? Color.blue : Color(red: 0.83, green: 0.58, blue: 0.49))
                             .frame(width: 8, height: 8)
-                        
+
                         Circle()
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: 8, height: 8)
-                        
+
                         Circle()
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: 8, height: 8)
-                        
+
                     }
                     .padding(.bottom, 40)
                     
@@ -104,7 +100,7 @@ struct ContentView: View {
                             .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
-                        
+
                         Text("Answer one question each day. Build a journal of your best moments.")
                             .font(.system(size: 17))
                             .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.7))
@@ -113,7 +109,7 @@ struct ContentView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.horizontal, 40)
-                    .padding(.bottom, 80)
+                    .padding(.bottom, 40)
                     
                     // Get Started button
                     NavigationLink(destination: AuthView()) {
