@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var storageManager = GoalStorageManager.shared
+    @State private var showReflectionView = false
 
     var body: some View {
         NavigationStack {
@@ -49,6 +50,58 @@ struct DashboardView: View {
                     .padding(.horizontal, 24)
                     .padding(.top, 20)
                     .padding(.bottom, 32)
+
+                    // Reflection prompt (if not completed today)
+                    if !storageManager.goals.isEmpty && !storageManager.hasCompletedReflectionToday() {
+                        Button(action: { showReflectionView = true }) {
+                            HStack(spacing: 16) {
+                                ZStack {
+                                    Circle()
+                                        .fill(colorScheme == .dark ?
+                                              Color(red: 0.35, green: 0.58, blue: 1.0).opacity(0.2) :
+                                                Color(red: 0.83, green: 0.58, blue: 0.49).opacity(0.2))
+                                        .frame(width: 56, height: 56)
+
+                                    Image(systemName: "pencil.circle.fill")
+                                        .font(.system(size: 28))
+                                        .foregroundColor(colorScheme == .dark ?
+                                                         Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                                            Color(red: 0.83, green: 0.58, blue: 0.49))
+                                }
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Daily Reflection")
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
+
+                                    Text("Reflect on today's progress")
+                                        .font(.system(size: 14))
+                                        .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14))
+                                    .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.4))
+                            }
+                            .padding(20)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(colorScheme == .dark ?
+                                          Color(red: 0.15, green: 0.18, blue: 0.24) :
+                                            Color.white.opacity(0.5))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .stroke(colorScheme == .dark ?
+                                                    Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                                        Color(red: 0.83, green: 0.58, blue: 0.49), lineWidth: 2)
+                                    )
+                            )
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 24)
+                    }
 
                     // Goals section
                     if storageManager.goals.isEmpty {

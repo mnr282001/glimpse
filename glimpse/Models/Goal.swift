@@ -21,8 +21,8 @@ struct Goal: Identifiable, Codable, Equatable {
         self.updatedAt = updatedAt
     }
 
-    // Placeholder for streak - will be calculated from reflections later
+    // Calculate real streak from reflections
     var currentStreak: Int {
-        return 0
+        return GoalStorageManager.shared.calculateStreak(for: id)
     }
 }

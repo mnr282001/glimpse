@@ -5,8 +5,9 @@ struct NotificationTimeView: View {
     @Environment(\.dismiss) var dismiss
     @State private var selectedTime: Date = Date()
     @State private var enableReminders: Bool = true
-    
-    
+    @State private var navigateToGoals = false
+    @State private var showPermissionDeniedAlert = false
+
     var body: some View {
         ZStack {
             // Background color
@@ -141,9 +142,14 @@ struct NotificationTimeView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
                 
-                // Continue button
+                // Hidden NavigationLink for navigation after permissions
+                NavigationLink(destination: GoalsSetupView(), isActive: $navigateToGoals) {
+                    EmptyView()
+                }
+                .hidden()
 
-                NavigationLink(destination: GoalsSetupView()) {
+                // Continue button
+                Button(action: handleContinue) {
                     Text("Continue")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
@@ -161,6 +167,43 @@ struct NotificationTimeView: View {
             }
         }
         .navigationBarHidden(true)
+        .alert("Notification Permission Required", isPresented: $showPermissionDeniedAlert) {
+            Button("Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Continue Anyway") {
+                navigateToGoals = true
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Notifications help you stay on track with your goals. You can enable them in Settings.")
+        }
+    }
+
+    // MARK: - Actions
+
+    private func handleContinue() {
+        // Save notification settings
+        let settings = NotificationSettings(time: selectedTime, enabled: enableReminders)
+        GoalStorageManager.shared.saveNotificationSettings(settings)
+
+        if enableReminders {
+            // Request notification permission
+            NotificationManager.shared.requestAuthorization { granted, error in
+                if granted {
+                    // Schedule notifications
+                    NotificationManager.shared.updateNotificationSettings(settings)
+                    navigateToGoals = true
+                } else {
+                    showPermissionDeniedAlert = true
+                }
+            }
+        } else {
+            // Skip notifications, just navigate
+            navigateToGoals = true
+        }
     }
 }
 
