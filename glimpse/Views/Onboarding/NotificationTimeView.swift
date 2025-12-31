@@ -6,6 +6,20 @@ struct NotificationTimeView: View {
     @State private var selectedTime: Date = Date()
     @State private var enableReminders: Bool = true
     
+    // Generate array of dates representing each hour of the day
+    private var hourOptions: [Date] {
+        let calendar = Calendar.current
+        return (0..<24).compactMap { hour in
+            calendar.date(bySettingHour: hour, minute: 0, second: 0, of: Date())
+        }
+    }
+    
+    // Format date to hour string
+    private func formatHour(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:00 a"
+        return formatter.string(from: date)
+    }
     
     var body: some View {
         ZStack {
@@ -100,13 +114,13 @@ struct NotificationTimeView: View {
                 
                 // Time Picker
                 HStack {
-                    DatePicker(
-                        "Select Time",
-                        selection: $selectedTime,
-                        displayedComponents: .hourAndMinute
-                    )
-                    .datePickerStyle(.wheel)
-                    .labelsHidden()
+                    Picker("Select Hour", selection: $selectedTime) {
+                        ForEach(hourOptions, id: \.self) { date in
+                            Text(formatHour(date))
+                                .tag(date)
+                        }
+                    }
+                    .pickerStyle(.wheel)
                     .frame(height: 180)
                     .background(
                         RoundedRectangle(cornerRadius: 20)
