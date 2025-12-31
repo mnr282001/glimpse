@@ -78,11 +78,9 @@ class GoalStorageManager: ObservableObject {
 
     // MARK: - User Personalization (for future use)
 
-    func savePersonalization(firstName: String, lastName: String, dateOfBirth: Date) {
+    func savePersonalization(firstName: String) {
         let personalization: [String: Any] = [
-            "firstName": firstName,
-            "lastName": lastName,
-            "dateOfBirth": dateOfBirth.timeIntervalSince1970
+            "firstName": firstName
         ]
         UserDefaults.standard.set(personalization, forKey: userPersonalizationKey)
     }

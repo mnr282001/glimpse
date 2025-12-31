@@ -199,15 +199,6 @@ struct AuthView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
                 
-                // Hidden NavigationLink for programmatic navigation
-                NavigationLink(
-                    destination: PersonalizationView(),
-                    isActive: $navigateToPersonalization
-                ) {
-                    EmptyView()
-                }
-                .hidden()
-
                 // Auth buttons
                 VStack(spacing: 16) {
                     // Email/Password button
@@ -368,6 +359,9 @@ struct AuthView: View {
                 .padding(.bottom, 50)
             }
         }
+        .navigationDestination(isPresented: $navigateToPersonalization) {
+            PersonalizationView()
+        }
         .navigationBarHidden(true)
     }
     
@@ -403,14 +397,4 @@ struct AuthView: View {
         navigateToPersonalization = true
         isLoading = false
     }
-}
-
-#Preview("Light Mode") {
-    AuthView()
-        .preferredColorScheme(.light)
-}
-
-#Preview("Dark Mode") {
-    AuthView()
-        .preferredColorScheme(.dark)
 }

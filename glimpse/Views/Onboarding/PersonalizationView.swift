@@ -3,10 +3,7 @@ import SwiftUI
 struct PersonalizationView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var firstName: String = ""
-    @State private var lastName: String = ""
-    @State private var dateOfBirth: Date = Date()
-    @State private var showDatePicker: Bool = false
-    
+
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
@@ -92,23 +89,23 @@ struct PersonalizationView: View {
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
                         .multilineTextAlignment(.center)
-                    
+
                     Text("This helps us personalize your experience.")
                         .font(.system(size: 17))
                         .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 40)
-                .padding(.bottom, 40)
+                .padding(.bottom, 60)
                 
-                // Form fields
-                VStack(alignment: .leading, spacing: 24) {
-                    // First Name
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("First Name")
-                            .font(.system(size: 15))
-                            .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
-                        
+                // Form fields - Enhanced spacing for single input creates focused, intentional design
+                VStack(alignment: .leading, spacing: 16) {
+                    // Name input with prominent label and supportive hint text
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("What should we call you?")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
+
                         TextField("e.g., Taylor", text: $firstName)
                             .font(.system(size: 17))
                             .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
@@ -123,139 +120,19 @@ struct PersonalizationView: View {
                                             .stroke((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.1), lineWidth: 1)
                                     )
                             )
-                    }
-                    
-                    // Last Name
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Last Name")
-                            .font(.system(size: 15))
-                            .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
-                        
-                        TextField("e.g., Smith", text: $lastName)
-                            .font(.system(size: 17))
-                            .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(colorScheme == .dark ?
-                                          Color(red: 0.15, green: 0.18, blue: 0.24) :
-                                            Color.white.opacity(0.5))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.1), lineWidth: 1)
-                                    )
-                            )
-                    }
-                    
-                    // Date of Birth
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Date of Birth")
-                            .font(.system(size: 15))
-                            .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
-                        
-                        Button(action: {
-                            showDatePicker.toggle()
-                        }) {
-                            HStack {
-                                Text(dateOfBirth, style: .date)                                    .font(.system(size: 17))
-                                    .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.4))
-                                
-                                Spacer()
-                                
-                                Image(systemName: "calendar")
-                                    .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.4))
-                            }
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(colorScheme == .dark ?
-                                          Color(red: 0.15, green: 0.18, blue: 0.24) :
-                                            Color.white.opacity(0.5))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.1), lineWidth: 1)
-                                    )
-                            )
-                        }
-                        .popover(isPresented: $showDatePicker, arrowEdge: .bottom) {
-                            VStack(spacing: 20) {
-                                // Title
-                                Text("Select Date")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
-                                    .padding(.top, 20)
-                                
-                                // Date Picker
-                                DatePicker("", selection: $dateOfBirth, displayedComponents: .date)
-                                    .datePickerStyle(.wheel)
-                                    .labelsHidden()
-                                    .padding(.horizontal)
-                                
-                                // Done Button
-                                Button(action: {
-                                    showDatePicker = false
-                                }) {
-                                    Text("Done")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 52)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 26)
-                                                .fill(colorScheme == .dark ?
-                                                      Color(red: 0.35, green: 0.58, blue: 1.0) :
-                                                        Color(red: 0.83, green: 0.58, blue: 0.49))
-                                        )
-                                }
-                                .padding(.horizontal, 20)
-                                .padding(.bottom, 20)
-                            }
-                            .frame(width: 340)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(colorScheme == .dark ?
-                                          Color(red: 0.15, green: 0.18, blue: 0.24) :
-                                            Color(red: 1.0, green: 0.97, blue: 0.94))
-                            )
-                            .presentationCompactAdaptation(.popover)
-                        }
-//                        .popover(isPresented: $showDatePicker, arrowEdge: .bottom) {
-//                            VStack(spacing: 0) {
-//                                DatePicker("", selection: $dateOfBirth, displayedComponents: .date)
-//                                    .datePickerStyle(.wheel)
-//                                    .labelsHidden()
-//                                    .padding()
-//                                
-//                                Button(action: {
-//                                    showDatePicker = false
-//                                }) {
-//                                    Text("Done")
-//                                        .font(.system(size: 16, weight: .semibold))
-//                                        .foregroundColor(.white)
-//                                        .frame(maxWidth: .infinity)
-//                                        .frame(height: 44)
-//                                        .background(
-//                                            RoundedRectangle(cornerRadius: 12)
-//                                                .fill(colorScheme == .dark ?
-//                                                      Color(red: 0.35, green: 0.58, blue: 1.0) :
-//                                                        Color(red: 0.83, green: 0.58, blue: 0.49))
-//                                        )
-//                                }
-//                                .padding(.horizontal)
-//                                .padding(.bottom)
-//                            }
-//                            .frame(width: 320)
-//                            .background(colorScheme == .dark ?
-//                                        Color(red: 0.15, green: 0.18, blue: 0.24) :
-//                                            Color(red: 1.0, green: 0.97, blue: 0.94))
-//                            .presentationCompactAdaptation(.popover)
-//                        }
+
+                        // Supportive hint text
+                        Text("We'll use this to personalize your Glimpse experience")
+                            .font(.system(size: 14))
+                            .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.5))
+                            .padding(.top, 4)
                     }
                 }
                 .padding(.horizontal, 24)
-                
-                Spacer()
-                
+
+                // Flexible spacer ensures button stays at bottom on all device sizes
+                Spacer(minLength: 60)
+
                 // Continue button
                 NavigationLink(destination: NotificationTimeView()) {
                     Text("Continue")
