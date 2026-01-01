@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var storageManager = GoalStorageManager.shared
+    @State private var navigateToSettings = false
 
     var body: some View {
         NavigationStack {
@@ -37,9 +38,9 @@ struct DashboardView: View {
 
                         Spacer()
 
-                        // Settings button (placeholder for future)
+                        // Settings button
                         Button(action: {
-                            // Future: Navigate to settings
+                            navigateToSettings = true
                         }) {
                             Image(systemName: "gearshape.fill")
                                 .font(.system(size: 24))
@@ -165,6 +166,9 @@ struct DashboardView: View {
                 }
             }
             .navigationBarHidden(true)
+            .navigationDestination(isPresented: $navigateToSettings) {
+                SettingsView()
+            }
         }
     }
 }

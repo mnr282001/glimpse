@@ -1,5 +1,88 @@
 # Supabase Integration Changelog
 
+## ✨ NEW FEATURE (2025-12-31) - Settings Page with Logout
+
+**New Feature**: Added Settings page accessible from Dashboard with Account, Notifications sections, and Logout functionality.
+
+**Features Implemented**:
+
+1. **Settings Page** (`SettingsView.swift`):
+   - Accessible via gear icon in Dashboard header
+   - Organized into sections: Account and Notifications
+   - Clean, iOS-style settings interface
+   - Dark/light mode support
+
+2. **Account Section**:
+   - Profile settings (placeholder)
+   - Email & Password management (placeholder)
+   - Prepared for future implementation
+
+3. **Notifications Section**:
+   - Notification settings (placeholder)
+   - Prepared for future customization
+
+4. **Logout Functionality**:
+   - Red logout button with confirmation dialog
+   - Clears Supabase session
+   - Clears local data (goals, onboarding status)
+   - Redirects to ContentView (welcome screen)
+   - Full screen transition for clean UX
+
+**User Flow**:
+1. Tap settings gear icon in Dashboard
+2. Navigate to Settings page
+3. Browse Account/Notifications sections (placeholders)
+4. Tap "Log Out" button
+5. Confirm logout in alert dialog
+6. Session cleared, redirected to welcome screen
+7. Can sign in/up again
+
+**Technical Implementation**:
+
+**SettingsView.swift**:
+```swift
+Button("Log Out", role: .destructive) {
+    logout()
+}
+
+private func logout() {
+    try await SupabaseManager.shared.signOut()
+    // Clear local data
+    storageManager.goals = []
+    UserDefaults.standard.set(false, forKey: "glimpse.onboarding.complete")
+    // Show welcome screen
+    showWelcomeScreen = true
+}
+```
+
+**DashboardView.swift**:
+```swift
+Button(action: { navigateToSettings = true }) {
+    Image(systemName: "gearshape.fill")
+}
+.navigationDestination(isPresented: $navigateToSettings) {
+    SettingsView()
+}
+```
+
+**Files Created**: 3
+- `/glimpse/Views/Settings/SettingsView.swift` - Main settings page
+- `/glimpse/Views/Settings/AccountSettingsView.swift` - Account settings placeholder
+- `/glimpse/Views/Settings/NotificationSettingsView.swift` - Notification settings placeholder
+
+**Files Modified**: 1
+- `/glimpse/Views/Dashboard/DashboardView.swift` - Added settings navigation
+
+**Lines Added**: ~330
+
+**Future Enhancements**:
+- Implement actual profile editing
+- Add email/password change functionality
+- Enable notification time customization
+- Add app preferences (theme, etc.)
+
+---
+
 ## ⚠️ UPDATE (2025-12-31) - Fix Loading Screen Not Respecting Dark Mode
 
 **Bug Fix**: Loading screen now respects system color scheme (light/dark mode).

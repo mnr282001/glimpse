@@ -63,7 +63,7 @@ struct glimpseApp: App {
 
     // MARK: - Debug Settings
     // Set to true to reset onboarding on every app launch (for testing)
-    private let resetOnboardingOnLaunch = true
+    private let resetOnboardingOnLaunch = false
 
     init() {
         // Reset onboarding for testing if flag is enabled
