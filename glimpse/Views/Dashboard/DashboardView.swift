@@ -51,7 +51,20 @@ struct DashboardView: View {
                     .padding(.bottom, 32)
 
                     // Goals section
-                    if storageManager.goals.isEmpty {
+                    if storageManager.isLoadingGoals {
+                        // Loading state
+                        VStack {
+                            Spacer()
+
+                            ProgressView()
+                                .tint(colorScheme == .dark ?
+                                      Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                        Color(red: 0.83, green: 0.58, blue: 0.49))
+                                .scaleEffect(1.5)
+
+                            Spacer()
+                        }
+                    } else if storageManager.goals.isEmpty {
                         // Empty state
                         VStack(spacing: 24) {
                             Spacer()

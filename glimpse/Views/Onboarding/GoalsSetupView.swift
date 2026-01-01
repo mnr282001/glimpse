@@ -309,6 +309,10 @@ struct GoalsSetupView: View {
         }
         .navigationDestination(isPresented: $navigateToDashboard) {
             DashboardView()
+                .onAppear {
+                    // Load goals when navigating from onboarding
+                    storageManager.loadGoals()
+                }
         }
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) { }

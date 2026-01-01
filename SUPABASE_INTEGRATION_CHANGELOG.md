@@ -1,5 +1,168 @@
 # Supabase Integration Changelog
 
+## ⚠️ UPDATE (2025-12-31) - Fix Loading Screen Not Respecting Dark Mode
+
+**Bug Fix**: Loading screen now respects system color scheme (light/dark mode).
+
+**Problem**:
+- Loading screen had hardcoded light mode colors
+- Users in dark mode saw a flash of light mode before app switched to dark mode
+- Jarring visual experience on app launch
+
+**Root Cause**:
+- Loading screen colors were hardcoded in `glimpseApp.swift`:
+  - Background: Light beige `Color(red: 1.0, green: 0.97, blue: 0.94)`
+  - Logo: Light terracotta `Color(red: 0.83, green: 0.58, blue: 0.49)`
+  - Text: Dark gray `Color(red: 0.17, green: 0.17, blue: 0.17)`
+- No `@Environment(\.colorScheme)` check
+
+**Solution**:
+- Created `LoadingView` component that respects color scheme
+- Uses same dark/light mode colors as rest of app:
+  - **Dark mode**: Dark background, blue accent
+  - **Light mode**: Light background, terracotta accent
+- Replaced hardcoded ZStack with `LoadingView()` component
+
+**Code Change**:
+```swift
+// NEW: LoadingView component
+struct LoadingView: View {
+    @Environment(\.colorScheme) var colorScheme
+
+    var body: some View {
+        ZStack {
+            (colorScheme == .dark ?
+                Color(red: 0.11, green: 0.12, blue: 0.15) :
+                Color(red: 1.0, green: 0.97, blue: 0.94))
+            // ... logo, text with color scheme checks
+        }
+    }
+}
+
+// BEFORE
+if isCheckingSession {
+    ZStack { /* hardcoded light colors */ }
+}
+
+// AFTER
+if isCheckingSession {
+    LoadingView()  // Respects system color scheme
+}
+```
+
+**Files Modified**: 1
+- `/glimpse/glimpseApp.swift` - Created LoadingView, replaced hardcoded loading screen
+
+**Lines Added**: ~35
+**Lines Removed**: ~22
+
+---
+
+## ⚠️ UPDATE (2025-12-31) - Fix Dashboard Flickering on App Start
+
+**Bug Fix**: Dashboard now shows loading indicator instead of flickering between "no goals" and goals list.
+
+**Problem**:
+- On app start, Dashboard appears with empty goals array
+- Shows "No goals yet" message briefly
+- Then `loadGoals()` completes and goals pop in
+- Visible flicker between empty state and populated state
+
+**Root Cause**:
+- DashboardView checked `goals.isEmpty` without considering loading state
+- Goals array is empty until Supabase query completes
+- No way to distinguish "loading" from "actually empty"
+
+**Solution**:
+1. Added `@Published var isLoadingGoals` to GoalStorageManager
+2. Set to `true` when loading starts, `false` when complete
+3. Updated DashboardView to show three states:
+   - **Loading** (`isLoadingGoals == true`) → Shows ProgressView
+   - **Empty** (`goals.isEmpty && !isLoadingGoals`) → Shows "No goals yet"
+   - **Has goals** → Shows goals list
+
+**Code Changes**:
+
+**GoalStorageManager.swift**:
+```swift
+@Published var isLoadingGoals: Bool = false
+
+func loadGoals() {
+    Task {
+        await MainActor.run { isLoadingGoals = true }
+        // ... fetch from Supabase
+        await MainActor.run {
+            self.goals = loadedGoals
+            isLoadingGoals = false
+        }
+    }
+}
+```
+
+**DashboardView.swift**:
+```swift
+if storageManager.isLoadingGoals {
+    ProgressView()  // Show loading
+} else if storageManager.goals.isEmpty {
+    // "No goals yet" message
+} else {
+    // Goals list
+}
+```
+
+**User Experience**:
+- **Before**: Flicker → "No goals yet" → Goals appear
+- **After**: Smooth → Loading spinner → Goals appear ✨
+
+**Files Modified**: 2
+- `/glimpse/Services/GoalStorageManager.swift` - Added isLoadingGoals state
+- `/glimpse/Views/Dashboard/DashboardView.swift` - Added loading state UI
+
+**Lines Added**: ~15
+**Lines Modified**: ~5
+
+---
+
+## ⚠️ UPDATE (2025-12-31) - Fix Goals Not Loading After Completing Onboarding
+
+**Bug Fix**: Goals now properly load when navigating to Dashboard after completing onboarding.
+
+**Problem**:
+- User completes onboarding (adds goals in GoalsSetupView)
+- Navigates to DashboardView
+- Dashboard shows empty - no goals displayed
+- Reloading app shows goals correctly
+
+**Root Cause**:
+- GoalsSetupView saves goals to Supabase
+- Navigates to DashboardView via navigationDestination
+- DashboardView didn't have `.onAppear` to load goals
+- `storageManager.loadGoals()` was never called
+
+**Solution**:
+- Added `.onAppear` to DashboardView in GoalsSetupView
+- Calls `storageManager.loadGoals()` when Dashboard appears
+- Goals are now fetched from Supabase immediately after onboarding
+
+**Code Change**:
+```swift
+// GoalsSetupView.swift
+.navigationDestination(isPresented: $navigateToDashboard) {
+    DashboardView()
+        .onAppear {
+            // Load goals when navigating from onboarding
+            storageManager.loadGoals()
+        }
+}
+```
+
+**Note**: SignInView already had this logic (loads goals before navigating), so this only affected the onboarding completion flow.
+
+**Files Modified**: 1
+- `/glimpse/Views/Onboarding/GoalsSetupView.swift` - Added onAppear to load goals
+
+---
+
 ## ⚠️ UPDATE (2025-12-31) - Always Start from Welcome Screen for Incomplete Onboarding
 
 **UX Improvement**: App now always shows welcome screen when onboarding is incomplete, then resumes from correct step after sign in/up.

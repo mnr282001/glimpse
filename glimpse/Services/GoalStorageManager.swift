@@ -20,6 +20,7 @@ class GoalStorageManager: ObservableObject {
     private let notificationSettingsKey = "glimpse.notification.settings"
 
     @Published var goals: [Goal] = []
+    @Published var isLoadingGoals: Bool = false
 
     private init() {
         // Don't load goals in init - will be loaded when user is authenticated
@@ -29,6 +30,10 @@ class GoalStorageManager: ObservableObject {
 
     func loadGoals() {
         Task {
+            await MainActor.run {
+                isLoadingGoals = true
+            }
+
             do {
                 let userId = try await SupabaseManager.shared.client.auth.session.user.id
 
@@ -50,12 +55,14 @@ class GoalStorageManager: ObservableObject {
 
                 await MainActor.run {
                     self.goals = loadedGoals
+                    self.isLoadingGoals = false
                 }
             } catch {
                 print("Error loading goals from Supabase: \(error)")
                 // Fallback to empty array if loading fails
                 await MainActor.run {
                     self.goals = []
+                    self.isLoadingGoals = false
                 }
             }
         }

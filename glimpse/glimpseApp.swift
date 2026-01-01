@@ -16,6 +16,44 @@ enum OnboardingState {
     case completed           // Fully onboarded
 }
 
+// Loading view that respects color scheme
+struct LoadingView: View {
+    @Environment(\.colorScheme) var colorScheme
+
+    var body: some View {
+        ZStack {
+            (colorScheme == .dark ?
+             Color(red: 0.11, green: 0.12, blue: 0.15) :
+                Color(red: 1.0, green: 0.97, blue: 0.94))
+            .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                // Logo
+                ZStack {
+                    Circle()
+                        .fill(colorScheme == .dark ?
+                              Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                Color(red: 0.83, green: 0.58, blue: 0.49))
+                        .frame(width: 80, height: 80)
+
+                    Image(systemName: "book.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.white)
+                }
+
+                Text("Glimpse")
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
+
+                ProgressView()
+                    .tint(colorScheme == .dark ?
+                          Color(red: 0.35, green: 0.58, blue: 1.0) :
+                            Color(red: 0.83, green: 0.58, blue: 0.49))
+            }
+        }
+    }
+}
+
 @main
 struct glimpseApp: App {
     @StateObject private var storageManager = GoalStorageManager.shared
@@ -40,30 +78,7 @@ struct glimpseApp: App {
             Group {
                 if isCheckingSession {
                     // Show loading screen while checking session
-                    ZStack {
-                        Color(red: 1.0, green: 0.97, blue: 0.94)
-                            .ignoresSafeArea()
-
-                        VStack(spacing: 20) {
-                            // Logo
-                            ZStack {
-                                Circle()
-                                    .fill(Color(red: 0.83, green: 0.58, blue: 0.49))
-                                    .frame(width: 80, height: 80)
-
-                                Image(systemName: "book.fill")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.white)
-                            }
-
-                            Text("Glimpse")
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(Color(red: 0.17, green: 0.17, blue: 0.17))
-
-                            ProgressView()
-                                .tint(Color(red: 0.83, green: 0.58, blue: 0.49))
-                        }
-                    }
+                    LoadingView()
                 } else {
                     // Show appropriate view based on onboarding state
                     NavigationStack {
