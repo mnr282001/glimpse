@@ -21,7 +21,7 @@ class SupabaseManager {
 
         client = SupabaseClient(
             supabaseURL: supabaseURL,
-            supabaseKey: SupabaseConfig.anonKey
+            supabaseKey: SupabaseConfig.publishableKey
         )
     }
 
