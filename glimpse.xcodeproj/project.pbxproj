@@ -416,7 +416,7 @@
 				DEVELOPMENT_TEAM = TZCL9JB6QK;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Glimpse - The Reflection App for Goals";
+				INFOPLIST_KEY_CFBundleDisplayName = Glimpse;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -446,7 +446,7 @@
 				DEVELOPMENT_TEAM = TZCL9JB6QK;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Glimpse - The Reflection App for Goals";
+				INFOPLIST_KEY_CFBundleDisplayName = Glimpse;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

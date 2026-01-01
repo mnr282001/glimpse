@@ -65,13 +65,13 @@ struct glimpseApp: App {
     // Set to true to reset onboarding on every app launch (for testing)
     private let resetOnboardingOnLaunch = false
 
-    init() {
-        // Reset onboarding for testing if flag is enabled
-        if resetOnboardingOnLaunch {
-            UserDefaults.standard.set(false, forKey: "glimpse.onboarding.complete")
-            UserDefaults.standard.removeObject(forKey: "glimpse.user.goals")
-        }
-    }
+//    init() {
+//        // Reset onboarding for testing if flag is enabled
+//        if resetOnboardingOnLaunch {
+//            UserDefaults.standard.set(false, forKey: "glimpse.onboarding.complete")
+//            UserDefaults.standard.removeObject(forKey: "glimpse.user.goals")
+//        }
+//    }
 
     var body: some Scene {
         WindowGroup {
