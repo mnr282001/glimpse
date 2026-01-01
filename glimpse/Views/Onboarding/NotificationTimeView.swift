@@ -5,6 +5,9 @@ struct NotificationTimeView: View {
     @Environment(\.dismiss) var dismiss
     @State private var selectedTime: Date = Date()
     @State private var enableReminders: Bool = true
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showError = false
     
     // Generate array of dates representing each hour of the day
     private var hourOptions: [Date] {
@@ -156,25 +159,89 @@ struct NotificationTimeView: View {
                 .padding(.bottom, 40)
                 
                 // Continue button
-
                 NavigationLink(destination: GoalsSetupView()) {
-                    Text("Continue")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(
-                            RoundedRectangle(cornerRadius: 28)
-                                .fill(colorScheme == .dark ?
-                                      Color(red: 0.35, green: 0.58, blue: 1.0) :
-                                        Color(red: 0.83, green: 0.58, blue: 0.49))
-                        )
+                    Group {
+                        if isLoading {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Text("Continue")
+                                .font(.system(size: 18, weight: .semibold))
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(
+                        RoundedRectangle(cornerRadius: 28)
+                            .fill(colorScheme == .dark ?
+                                  Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                    Color(red: 0.83, green: 0.58, blue: 0.49))
+                    )
                 }
+                .simultaneousGesture(TapGesture().onEnded {
+                    Task {
+                        await saveNotificationSettings()
+                    }
+                })
+                .disabled(isLoading)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 50)
             }
         }
+        .alert("Error", isPresented: $showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage ?? "An unknown error occurred")
+        }
         .navigationBarHidden(true)
+    }
+
+    // MARK: - Supabase Functions
+
+    private struct NotificationSettings: Encodable {
+        let user_id: String
+        let reminder_time: String
+        let enabled: Bool
+    }
+
+    private func saveNotificationSettings() async {
+        await MainActor.run {
+            isLoading = true
+        }
+
+        do {
+            let userId = try await SupabaseManager.shared.client.auth.session.user.id
+
+            // Extract time components
+            let calendar = Calendar.current
+            let hour = calendar.component(.hour, from: selectedTime)
+            let minute = calendar.component(.minute, from: selectedTime)
+            let timeString = String(format: "%02d:%02d:00", hour, minute)
+
+            let settings = NotificationSettings(
+                user_id: userId.uuidString,
+                reminder_time: timeString,
+                enabled: enableReminders
+            )
+
+            // Upsert (insert or update if exists)
+            try await SupabaseManager.shared.client
+                .database
+                .from("notification_settings")
+                .upsert(settings)
+                .execute()
+
+            await MainActor.run {
+                isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                isLoading = false
+                errorMessage = error.localizedDescription
+                showError = true
+            }
+        }
     }
 }
 

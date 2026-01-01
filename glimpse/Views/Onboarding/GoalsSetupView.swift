@@ -9,6 +9,10 @@ struct GoalsSetupView: View {
     @State private var goalTitle: String = ""
     @State private var selectedCategory: GoalCategory = .personal
     @State private var showingCategoryPicker = false
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showError = false
+    @State private var navigateToDashboard = false
 
     private let maxGoals = 3
     private let maxTitleLength = 50
@@ -273,29 +277,44 @@ struct GoalsSetupView: View {
                 Spacer()
 
                 // Continue button
-                ZStack {
-                    NavigationLink(destination: DashboardView()) {
-                        Text("Continue")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(
-                                RoundedRectangle(cornerRadius: 28)
-                                    .fill(colorScheme == .dark ?
-                                          Color(red: 0.35, green: 0.58, blue: 1.0) :
-                                            Color(red: 0.83, green: 0.58, blue: 0.49))
-                            )
+                VStack {
+                    NavigationLink(destination: DashboardView(), isActive: $navigateToDashboard) {
+                        EmptyView()
                     }
-                    .disabled(goals.isEmpty)
-                    .opacity(goals.isEmpty ? 0.5 : 1.0)
-                    .simultaneousGesture(TapGesture().onEnded {
+
+                    Button(action: {
                         saveGoalsAndCompleteOnboarding()
-                    })
+                    }) {
+                        Group {
+                            if isLoading {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Text("Continue")
+                                    .font(.system(size: 18, weight: .semibold))
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(
+                            RoundedRectangle(cornerRadius: 28)
+                                .fill(colorScheme == .dark ?
+                                      Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                        Color(red: 0.83, green: 0.58, blue: 0.49))
+                        )
+                    }
+                    .disabled(goals.isEmpty || isLoading)
+                    .opacity((goals.isEmpty || isLoading) ? 0.5 : 1.0)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 50)
             }
+        }
+        .alert("Error", isPresented: $showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage ?? "An unknown error occurred")
         }
         .navigationBarHidden(true)
         .sheet(isPresented: $showingCategoryPicker) {
@@ -326,8 +345,42 @@ struct GoalsSetupView: View {
     private func saveGoalsAndCompleteOnboarding() {
         guard !goals.isEmpty else { return }
 
-        storageManager.saveGoals(goals)
-        storageManager.completeOnboarding()
+        isLoading = true
+
+        Task {
+            do {
+                let userId = try await SupabaseManager.shared.client.auth.session.user.id
+
+                // Convert goals to database format
+                let goalsData = goals.map { goal in
+                    [
+                        "user_id": userId.uuidString,
+                        "title": goal.title,
+                        "category": goal.category.rawValue
+                    ]
+                }
+
+                // Insert all goals
+                try await SupabaseManager.shared.client
+                    .database
+                    .from("goals")
+                    .insert(goalsData)
+                    .execute()
+
+                // Mark onboarding complete (still use UserDefaults for this flag)
+                await MainActor.run {
+                    storageManager.completeOnboarding()
+                    isLoading = false
+                    navigateToDashboard = true
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
+            }
+        }
     }
 }
 

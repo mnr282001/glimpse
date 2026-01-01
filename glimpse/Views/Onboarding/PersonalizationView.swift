@@ -3,6 +3,9 @@ import SwiftUI
 struct PersonalizationView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var firstName: String = ""
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showError = false
 
     @Environment(\.dismiss) var dismiss
     
@@ -135,23 +138,72 @@ struct PersonalizationView: View {
 
                 // Continue button
                 NavigationLink(destination: NotificationTimeView()) {
-                    Text("Continue")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(
-                            RoundedRectangle(cornerRadius: 28)
-                                .fill(colorScheme == .dark ?
-                                      Color(red: 0.35, green: 0.58, blue: 1.0) :
-                                        Color(red: 0.83, green: 0.58, blue: 0.49))
-                        )
+                    Group {
+                        if isLoading {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Text("Continue")
+                                .font(.system(size: 18, weight: .semibold))
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(
+                        RoundedRectangle(cornerRadius: 28)
+                            .fill(colorScheme == .dark ?
+                                  Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                    Color(red: 0.83, green: 0.58, blue: 0.49))
+                    )
                 }
+                .simultaneousGesture(TapGesture().onEnded {
+                    Task {
+                        await savePersonalization()
+                    }
+                })
+                .disabled(isLoading)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 50)
             }
         }
+        .alert("Error", isPresented: $showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage ?? "An unknown error occurred")
+        }
         .navigationBarHidden(true)
+    }
+
+    // MARK: - Supabase Functions
+
+    private func savePersonalization() async {
+        guard !firstName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+
+        await MainActor.run {
+            isLoading = true
+        }
+
+        do {
+            let userId = try await SupabaseManager.shared.client.auth.session.user.id
+
+            try await SupabaseManager.shared.client
+                .database
+                .from("profiles")
+                .update(["first_name": firstName.trimmingCharacters(in: .whitespaces)])
+                .eq("id", value: userId.uuidString)
+                .execute()
+
+            await MainActor.run {
+                isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                isLoading = false
+                errorMessage = error.localizedDescription
+                showError = true
+            }
+        }
     }
 }
 

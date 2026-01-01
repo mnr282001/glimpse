@@ -1,5 +1,16 @@
 import Foundation
 
+// MARK: - Supabase Response Models
+
+/// Response model for goals from Supabase
+private struct GoalResponse: Decodable {
+    let id: String
+    let user_id: String
+    let title: String
+    let category: String
+    let created_at: String?
+}
+
 class GoalStorageManager: ObservableObject {
     static let shared = GoalStorageManager()
 
@@ -11,22 +22,42 @@ class GoalStorageManager: ObservableObject {
     @Published var goals: [Goal] = []
 
     private init() {
-        loadGoals()
+        // Don't load goals in init - will be loaded when user is authenticated
     }
 
     // MARK: - Goals Management
 
     func loadGoals() {
-        guard let data = UserDefaults.standard.data(forKey: goalsKey) else {
-            goals = []
-            return
-        }
+        Task {
+            do {
+                let userId = try await SupabaseManager.shared.client.auth.session.user.id
 
-        do {
-            goals = try JSONDecoder().decode([Goal].self, from: data)
-        } catch {
-            print("Error loading goals: \(error)")
-            goals = []
+                let response: [GoalResponse] = try await SupabaseManager.shared.client
+                    .database
+                    .from("goals")
+                    .select()
+                    .eq("user_id", value: userId.uuidString)
+                    .execute()
+                    .value
+
+                let loadedGoals = response.map { goalResponse in
+                    Goal(
+                        id: UUID(uuidString: goalResponse.id) ?? UUID(),
+                        title: goalResponse.title,
+                        category: GoalCategory(rawValue: goalResponse.category) ?? .personal
+                    )
+                }
+
+                await MainActor.run {
+                    self.goals = loadedGoals
+                }
+            } catch {
+                print("Error loading goals from Supabase: \(error)")
+                // Fallback to empty array if loading fails
+                await MainActor.run {
+                    self.goals = []
+                }
+            }
         }
     }
 

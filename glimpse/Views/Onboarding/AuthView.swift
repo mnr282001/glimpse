@@ -8,6 +8,8 @@ struct AuthView: View {
     @State private var isLoading = false
     @State private var showEmailAuth = false
     @State private var navigateToPersonalization = false
+    @State private var errorMessage: String?
+    @State private var showError = false
     
     var body: some View {
         ZStack {
@@ -206,20 +208,27 @@ struct AuthView: View {
                         Button(action: {
                             signInWithEmail()
                         }) {
-                            Text("Continue")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 56)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 28)
-                                        .fill(colorScheme == .dark ?
-                                              Color(red: 0.35, green: 0.58, blue: 1.0) :
-                                                Color(red: 0.83, green: 0.58, blue: 0.49))
-                                )
+                            Group {
+                                if isLoading {
+                                    ProgressView()
+                                        .tint(.white)
+                                } else {
+                                    Text("Continue")
+                                        .font(.system(size: 18, weight: .semibold))
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(
+                                RoundedRectangle(cornerRadius: 28)
+                                    .fill(colorScheme == .dark ?
+                                          Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                            Color(red: 0.83, green: 0.58, blue: 0.49))
+                            )
                         }
-                        .disabled(email.isEmpty || password.isEmpty)
-                        .opacity((email.isEmpty || password.isEmpty) ? 0.5 : 1.0)
+                        .disabled(email.isEmpty || password.isEmpty || isLoading)
+                        .opacity((email.isEmpty || password.isEmpty || isLoading) ? 0.5 : 1.0)
                     } else {
                         Button(action: {
                             withAnimation(.spring(response: 0.4)) {
@@ -362,39 +371,72 @@ struct AuthView: View {
         .navigationDestination(isPresented: $navigateToPersonalization) {
             PersonalizationView()
         }
+        .alert("Error", isPresented: $showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage ?? "An unknown error occurred")
+        }
         .navigationBarHidden(true)
     }
     
     // MARK: - Auth Functions
-    
+
     func signInWithEmail() {
+        guard !email.isEmpty, !password.isEmpty else { return }
+
         isLoading = true
-        print("Sign in with email: \(email)")
-        
-        // TODO: Implement Supabase Email Sign In
-        // supabase.auth.signIn(email: email, password: password)
-        
-        navigateToPersonalization = true
-        isLoading = false
+        errorMessage = nil
+
+        Task {
+            do {
+                // Try to sign in first
+                let session = try await SupabaseManager.shared.client.auth.signIn(
+                    email: email,
+                    password: password
+                )
+
+                await MainActor.run {
+                    isLoading = false
+                    navigateToPersonalization = true
+                }
+            } catch {
+                // If sign in fails, try to sign up
+                do {
+                    let session = try await SupabaseManager.shared.client.auth.signUp(
+                        email: email,
+                        password: password
+                    )
+
+                    await MainActor.run {
+                        isLoading = false
+                        // Check if email confirmation is required
+                        if session.user.emailConfirmedAt == nil {
+                            errorMessage = "Please check your email to confirm your account"
+                            showError = true
+                        } else {
+                            navigateToPersonalization = true
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        isLoading = false
+                        errorMessage = error.localizedDescription
+                        showError = true
+                    }
+                }
+            }
+        }
     }
 
     func signInWithApple() {
-        isLoading = true
-        print("Sign in with Apple tapped")
-        
-        // TODO: Implement Supabase Apple Sign In
-        
-        navigateToPersonalization = true
-        isLoading = false
+        // TODO: Implement Apple Sign In (future feature)
+        errorMessage = "Apple Sign In coming soon"
+        showError = true
     }
 
     func signInWithGoogle() {
-        isLoading = true
-        print("Sign in with Google tapped")
-        
-        // TODO: Implement Supabase Google Sign In
-        
-        navigateToPersonalization = true
-        isLoading = false
+        // TODO: Implement Google Sign In (future feature)
+        errorMessage = "Google Sign In coming soon"
+        showError = true
     }
 }
