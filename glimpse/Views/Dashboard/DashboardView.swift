@@ -13,6 +13,34 @@ struct DashboardView: View {
     @State private var showPremiumUpgrade = false
     @State private var errorMessage: String?
     @State private var showError = false
+    
+    // MARK: - CTA Styling Helpers
+
+    private var accentColor: Color {
+        colorScheme == .dark
+        ? Color(red: 0.35, green: 0.58, blue: 1.0)
+        : Color(red: 0.83, green: 0.58, blue: 0.49)
+    }
+
+    private var addButtonBackground: some View {
+        RoundedRectangle(cornerRadius: 26)
+            .fill(colorScheme == .dark
+                  ? Color(red: 0.15, green: 0.18, blue: 0.24)
+                  : Color.white.opacity(0.5))
+            .overlay(
+                RoundedRectangle(cornerRadius: 26)
+                    .stroke(accentColor, lineWidth: 2)
+            )
+    }
+
+    private var upgradeButtonBackground: some View {
+        RoundedRectangle(cornerRadius: 26)
+            .fill(accentColor.opacity(colorScheme == .dark ? 0.25 : 0.15))
+            .overlay(
+                RoundedRectangle(cornerRadius: 26)
+                    .stroke(accentColor, lineWidth: 2)
+            )
+    }
 
     var body: some View {
         NavigationStack {
@@ -108,11 +136,53 @@ struct DashboardView: View {
 
                             // Add Goal Button
                             Button(action: {
-                                if storageManager.canAddGoal {
-                                    showAddGoalView = true
-                                } else {
-                                    showPremiumUpgrade = true
+                                if !storageManager.goals.isEmpty {
+
+                                    // FREE USER AT 3 GOALS → SHOW UPGRADE
+                                    if storageManager.isAtFreeLimit {
+                                        Button {
+                                            showPremiumUpgrade = true
+                                        } label: {
+                                            HStack(spacing: 8) {
+                                                Image(systemName: "crown.fill")
+                                                    .font(.system(size: 20))
+
+                                                Text("Upgrade to Add More")
+                                                    .font(.system(size: 17, weight: .semibold))
+                                            }
+                                            .foregroundColor(accentColor)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 52)
+                                            .background(upgradeButtonBackground)
+                                        }
+                                        .padding(.horizontal, 24)
+                                        .padding(.bottom, 50)
+                                    }
+
+                                    // CAN ADD GOAL → NORMAL ADD BUTTON
+                                    else if storageManager.canAddGoal {
+                                        Button {
+                                            showAddGoalView = true
+                                        } label: {
+                                            HStack(spacing: 8) {
+                                                Image(systemName: "plus.circle.fill")
+                                                    .font(.system(size: 20))
+
+                                                Text("Add Another Goal")
+                                                    .font(.system(size: 17, weight: .semibold))
+                                            }
+                                            .foregroundColor(accentColor)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 52)
+                                            .background(addButtonBackground)
+                                        }
+                                        .padding(.horizontal, 24)
+                                        .padding(.bottom, 50)
+                                    }
+
+                                    // PREMIUM USER AT 10 → SHOW NOTHING (correct behavior)
                                 }
+
                             }) {
                                 HStack(spacing: 12) {
                                     Image(systemName: "plus.circle.fill")
@@ -183,11 +253,53 @@ struct DashboardView: View {
                     // Add goal button - always show but behavior depends on tier
                     if !storageManager.goals.isEmpty {
                         Button(action: {
-                            if storageManager.canAddGoal {
-                                showAddGoalView = true
-                            } else {
-                                showPremiumUpgrade = true
+                            if !storageManager.goals.isEmpty {
+
+                                // FREE USER AT 3 GOALS → SHOW UPGRADE
+                                if storageManager.isAtFreeLimit {
+                                    Button {
+                                        showPremiumUpgrade = true
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "crown.fill")
+                                                .font(.system(size: 20))
+
+                                            Text("Upgrade to Add More")
+                                                .font(.system(size: 17, weight: .semibold))
+                                        }
+                                        .foregroundColor(accentColor)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 52)
+                                        .background(upgradeButtonBackground)
+                                    }
+                                    .padding(.horizontal, 24)
+                                    .padding(.bottom, 50)
+                                }
+
+                                // CAN ADD GOAL → NORMAL ADD BUTTON
+                                else if storageManager.canAddGoal {
+                                    Button {
+                                        showAddGoalView = true
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "plus.circle.fill")
+                                                .font(.system(size: 20))
+
+                                            Text("Add Another Goal")
+                                                .font(.system(size: 17, weight: .semibold))
+                                        }
+                                        .foregroundColor(accentColor)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 52)
+                                        .background(addButtonBackground)
+                                    }
+                                    .padding(.horizontal, 24)
+                                    .padding(.bottom, 50)
+                                }
+
+                                // PREMIUM USER AT 10 → SHOW NOTHING (correct behavior)
                             }
+
                         }) {
                             HStack(spacing: 8) {
                                 Image(systemName: storageManager.canAddGoal ? "plus.circle.fill" : "crown.fill")

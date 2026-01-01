@@ -81,18 +81,18 @@ struct GoalCardView: View {
 
                 Spacer()
 
-                // Streak indicator (placeholder)
-                VStack(spacing: 4) {
-                    Text("\(goal.currentStreak)")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(colorScheme == .dark ?
-                            Color(red: 0.35, green: 0.58, blue: 1.0) :
-                            Color(red: 0.83, green: 0.58, blue: 0.49))
-
-                    Text("day streak")
-                        .font(.system(size: 12))
-                        .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
-                }
+//                // Streak indicator (placeholder)
+//                VStack(spacing: 4) {
+//                    Text("\(goal.currentStreak)")
+//                        .font(.system(size: 24, weight: .bold))
+//                        .foregroundColor(colorScheme == .dark ?
+//                            Color(red: 0.35, green: 0.58, blue: 1.0) :
+//                            Color(red: 0.83, green: 0.58, blue: 0.49))
+//
+//                    Text("day streak")
+//                        .font(.system(size: 12))
+//                        .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
+//                }
             }
             .padding(20)
             .background(
