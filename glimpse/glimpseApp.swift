@@ -7,11 +7,21 @@
 
 import SwiftUI
 
+// Onboarding state enum
+enum OnboardingState {
+    case notStarted           // No account yet
+    case needsPersonalization // Has account, needs to complete personalization
+    case needsNotifications   // Has personalization, needs notification settings
+    case needsGoals          // Has notifications, needs to set goals
+    case completed           // Fully onboarded
+}
+
 @main
 struct glimpseApp: App {
     @StateObject private var storageManager = GoalStorageManager.shared
     @State private var isCheckingSession = true
     @State private var hasActiveSession = false
+    @State private var onboardingState: OnboardingState = .notStarted
 
     // MARK: - Debug Settings
     // Set to true to reset onboarding on every app launch (for testing)
@@ -54,14 +64,23 @@ struct glimpseApp: App {
                                 .tint(Color(red: 0.83, green: 0.58, blue: 0.49))
                         }
                     }
-                } else if hasActiveSession && storageManager.isOnboardingComplete {
-                    DashboardView()
-                        .onAppear {
-                            // Load goals when dashboard appears
-                            storageManager.loadGoals()
-                        }
                 } else {
-                    ContentView()
+                    // Show appropriate view based on onboarding state
+                    NavigationStack {
+                        Group {
+                            switch onboardingState {
+                            case .notStarted, .needsPersonalization, .needsNotifications, .needsGoals:
+                                // Always show ContentView for incomplete onboarding
+                                // User will sign in/up and resume from their last step
+                                ContentView()
+                            case .completed:
+                                DashboardView()
+                                    .onAppear {
+                                        storageManager.loadGoals()
+                                    }
+                            }
+                        }
+                    }
                 }
             }
             .task {
@@ -74,16 +93,113 @@ struct glimpseApp: App {
 
     private func checkSession() async {
         do {
-            let session = try await SupabaseManager.shared.client.auth.session
+            _ = try await SupabaseManager.shared.client.auth.session
+
+            // User has active session, check their onboarding progress
+            let state = await checkOnboardingProgress()
+
+            // If state is nil, session is invalid - sign out
+            if state == nil {
+                try? await SupabaseManager.shared.signOut()
+                await MainActor.run {
+                    hasActiveSession = false
+                    onboardingState = .notStarted
+                    isCheckingSession = false
+                }
+                return
+            }
+
             await MainActor.run {
                 hasActiveSession = true
+                onboardingState = state!
                 isCheckingSession = false
             }
         } catch {
+            // No active session
             await MainActor.run {
                 hasActiveSession = false
+                onboardingState = .notStarted
                 isCheckingSession = false
             }
+        }
+    }
+
+    private func checkOnboardingProgress() async -> OnboardingState? {
+        do {
+            let userId = try await SupabaseManager.shared.client.auth.session.user.id
+
+            // 1. Check if user has profile with first_name
+            struct ProfileResponse: Decodable {
+                let first_name: String?
+            }
+
+            let profileResponse: [ProfileResponse] = try await SupabaseManager.shared.client
+                .database
+                .from("profiles")
+                .select("first_name")
+                .eq("id", value: userId.uuidString)
+                .execute()
+                .value
+
+            // If no profile record exists at all, the user was deleted or doesn't exist
+            // This means the session is invalid
+            guard !profileResponse.isEmpty else {
+                print("No profile found for user - session is invalid")
+                return nil
+            }
+
+            // Profile exists - check if first_name is populated
+            guard let profile = profileResponse.first,
+                  let firstName = profile.first_name,
+                  !firstName.isEmpty else {
+                print("Profile exists but first_name is missing - needs personalization")
+                return .needsPersonalization
+            }
+
+            // 2. Check if user has notification settings
+            struct NotificationResponse: Decodable {
+                let id: String
+            }
+
+            let notificationResponse: [NotificationResponse] = try await SupabaseManager.shared.client
+                .database
+                .from("notification_settings")
+                .select("id")
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+                .value
+
+            guard !notificationResponse.isEmpty else {
+                return .needsNotifications
+            }
+
+            // 3. Check if user has goals
+            struct GoalResponse: Decodable {
+                let id: String
+            }
+
+            let goalsResponse: [GoalResponse] = try await SupabaseManager.shared.client
+                .database
+                .from("goals")
+                .select("id")
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+                .value
+
+            guard !goalsResponse.isEmpty else {
+                return .needsGoals
+            }
+
+            // User has completed all onboarding steps
+            await MainActor.run {
+                storageManager.completeOnboarding() // Sync local flag
+            }
+            return .completed
+
+        } catch {
+            print("Error checking onboarding progress: \(error)")
+            // Return nil to indicate session is invalid (user deleted, auth error, etc.)
+            return nil
         }
     }
 }

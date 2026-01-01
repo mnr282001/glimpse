@@ -187,11 +187,16 @@ struct PersonalizationView: View {
         do {
             let userId = try await SupabaseManager.shared.client.auth.session.user.id
 
+            let profileData: [String: String] = [
+                "id": userId.uuidString,
+                "first_name": firstName.trimmingCharacters(in: .whitespaces)
+            ]
+
+            // Upsert to handle both insert and update cases
             try await SupabaseManager.shared.client
                 .database
                 .from("profiles")
-                .update(["first_name": firstName.trimmingCharacters(in: .whitespaces)])
-                .eq("id", value: userId.uuidString)
+                .upsert(profileData, onConflict: "id")
                 .execute()
 
             await MainActor.run {

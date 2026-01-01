@@ -8,6 +8,8 @@ struct AuthView: View {
     @State private var isLoading = false
     @State private var showEmailAuth = false
     @State private var navigateToPersonalization = false
+    @State private var navigateToNotifications = false
+    @State private var navigateToGoals = false
     @State private var errorMessage: String?
     @State private var showError = false
     
@@ -130,13 +132,13 @@ struct AuthView: View {
                 
                 // Text content
                 VStack(spacing: 16) {
-                    Text("Welcome to Glimpse")
+                    Text("Create Your Account")
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
-                    
-                    Text("Sign in to start journaling your gratitude and build lasting memories.")
+
+                    Text("Start your journey of gratitude and reflection.")
                         .font(.system(size: 17))
                         .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.7))
                         .multilineTextAlignment(.center)
@@ -206,14 +208,14 @@ struct AuthView: View {
                     // Email/Password button
                     if showEmailAuth {
                         Button(action: {
-                            signInWithEmail()
+                            signUp()
                         }) {
                             Group {
                                 if isLoading {
                                     ProgressView()
                                         .tint(.white)
                                 } else {
-                                    Text("Continue")
+                                    Text("Create Account")
                                         .font(.system(size: 18, weight: .semibold))
                                 }
                             }
@@ -229,6 +231,22 @@ struct AuthView: View {
                         }
                         .disabled(email.isEmpty || password.isEmpty || isLoading)
                         .opacity((email.isEmpty || password.isEmpty || isLoading) ? 0.5 : 1.0)
+
+                        // Already have account link
+                        HStack(spacing: 4) {
+                            Text("Already have an account?")
+                                .font(.system(size: 15))
+                                .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
+
+                            NavigationLink(destination: SignInView()) {
+                                Text("Sign In")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(colorScheme == .dark ?
+                                                     Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                                        Color(red: 0.83, green: 0.58, blue: 0.49))
+                            }
+                        }
+                        .padding(.top, 8)
                     } else {
                         Button(action: {
                             withAnimation(.spring(response: 0.4)) {
@@ -316,20 +334,6 @@ struct AuthView: View {
                                     )
                             )
                         }
-                    } else {
-                        // Back to options button
-                        Button(action: {
-                            withAnimation(.spring(response: 0.4)) {
-                                showEmailAuth = false
-                                email = ""
-                                password = ""
-                            }
-                        }) {
-                            Text("Back to sign in options")
-                                .font(.system(size: 15))
-                                .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
-                        }
-                        .padding(.top, 8)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -371,6 +375,12 @@ struct AuthView: View {
         .navigationDestination(isPresented: $navigateToPersonalization) {
             PersonalizationView()
         }
+        .navigationDestination(isPresented: $navigateToNotifications) {
+            NotificationTimeView()
+        }
+        .navigationDestination(isPresented: $navigateToGoals) {
+            GoalsSetupView()
+        }
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -381,7 +391,7 @@ struct AuthView: View {
     
     // MARK: - Auth Functions
 
-    func signInWithEmail() {
+    func signUp() {
         guard !email.isEmpty, !password.isEmpty else { return }
 
         isLoading = true
@@ -389,43 +399,125 @@ struct AuthView: View {
 
         Task {
             do {
-                // Try to sign in first
-                let session = try await SupabaseManager.shared.client.auth.signIn(
+                // Only sign up - do NOT sign in
+                let session = try await SupabaseManager.shared.client.auth.signUp(
                     email: email,
                     password: password
                 )
 
-                await MainActor.run {
-                    isLoading = false
-                    navigateToPersonalization = true
-                }
-            } catch {
-                // If sign in fails, try to sign up
-                do {
-                    let session = try await SupabaseManager.shared.client.auth.signUp(
-                        email: email,
-                        password: password
-                    )
-
+                // Check if email confirmation is required
+                if session.user.emailConfirmedAt == nil {
                     await MainActor.run {
                         isLoading = false
-                        // Check if email confirmation is required
-                        if session.user.emailConfirmedAt == nil {
-                            errorMessage = "Please check your email to confirm your account"
-                            showError = true
-                        } else {
-                            navigateToPersonalization = true
-                        }
-                    }
-                } catch {
-                    await MainActor.run {
-                        isLoading = false
-                        errorMessage = error.localizedDescription
+                        errorMessage = "Please check your email to confirm your account"
                         showError = true
                     }
+                    return
+                }
+
+                // Check onboarding progress to resume where user left off
+                let onboardingStep = await checkOnboardingStatus()
+
+                await MainActor.run {
+                    isLoading = false
+
+                    switch onboardingStep {
+                    case .needsPersonalization:
+                        navigateToPersonalization = true
+                    case .needsNotifications:
+                        navigateToNotifications = true
+                    case .needsGoals:
+                        navigateToGoals = true
+                    case .completed:
+                        // Should not happen for sign up, but handle it
+                        navigateToPersonalization = true
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = error.localizedDescription
+                    showError = true
                 }
             }
         }
+    }
+
+    // MARK: - Onboarding Check
+
+    /// Check onboarding status to resume from correct step
+    private func checkOnboardingStatus() async -> OnboardingStep {
+        do {
+            let userId = try await SupabaseManager.shared.client.auth.session.user.id
+
+            // Check if user has profile with first_name
+            struct ProfileResponse: Decodable {
+                let first_name: String?
+            }
+
+            let profileResponse: [ProfileResponse] = try await SupabaseManager.shared.client
+                .database
+                .from("profiles")
+                .select("first_name")
+                .eq("id", value: userId.uuidString)
+                .execute()
+                .value
+
+            guard let profile = profileResponse.first,
+                  let firstName = profile.first_name,
+                  !firstName.isEmpty else {
+                return .needsPersonalization
+            }
+
+            // Check if user has notification settings
+            struct NotificationResponse: Decodable {
+                let id: String
+            }
+
+            let notificationResponse: [NotificationResponse] = try await SupabaseManager.shared.client
+                .database
+                .from("notification_settings")
+                .select("id")
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+                .value
+
+            guard !notificationResponse.isEmpty else {
+                return .needsNotifications
+            }
+
+            // Check if user has goals
+            struct GoalResponse: Decodable {
+                let id: String
+            }
+
+            let goalsResponse: [GoalResponse] = try await SupabaseManager.shared.client
+                .database
+                .from("goals")
+                .select("id")
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+                .value
+
+            guard !goalsResponse.isEmpty else {
+                return .needsGoals
+            }
+
+            // User has completed all steps
+            return .completed
+
+        } catch {
+            print("Error checking onboarding status: \(error)")
+            // Default to start of onboarding
+            return .needsPersonalization
+        }
+    }
+
+    enum OnboardingStep {
+        case needsPersonalization
+        case needsNotifications
+        case needsGoals
+        case completed
     }
 
     func signInWithApple() {

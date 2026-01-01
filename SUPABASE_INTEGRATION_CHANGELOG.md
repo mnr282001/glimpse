@@ -1,18 +1,485 @@
 # Supabase Integration Changelog
 
+## ⚠️ UPDATE (2025-12-31) - Always Start from Welcome Screen for Incomplete Onboarding
+
+**UX Improvement**: App now always shows welcome screen when onboarding is incomplete, then resumes from correct step after sign in/up.
+
+**Previous Behavior**:
+- User exits app mid-onboarding (e.g., after PersonalizationView)
+- Reopens app → Directly shows NotificationTimeView
+- Confusing - user doesn't understand why they're mid-onboarding
+
+**New Behavior**:
+- User exits app mid-onboarding
+- Reopens app → Shows ContentView (welcome screen)
+- User signs in or signs up
+- App checks Supabase to determine progress
+- Navigates to the exact step they left off at
+- Clear user flow: Welcome → Auth → Resume onboarding
+
+**Implementation**:
+
+1. **glimpseApp.swift**:
+   - Always shows ContentView for any incomplete onboarding state
+   - Only shows Dashboard when fully completed
+
+```swift
+switch onboardingState {
+case .notStarted, .needsPersonalization, .needsNotifications, .needsGoals:
+    ContentView()  // Always start here
+case .completed:
+    DashboardView()
+}
+```
+
+2. **AuthView.swift** (Sign Up):
+   - Added `checkOnboardingStatus()` function
+   - After successful sign up, checks Supabase for user's progress
+   - Navigates to PersonalizationView, NotificationTimeView, or GoalsSetupView as needed
+   - Resumes onboarding from correct step
+
+3. **SignInView.swift** (Sign In):
+   - Already had onboarding check logic
+   - Now benefits from always starting at ContentView
+
+**User Flow Examples**:
+
+**Example 1: New User**
+1. Open app → ContentView
+2. Sign up → PersonalizationView
+3. Complete → NotificationTimeView
+4. Complete → GoalsSetupView
+5. Complete → DashboardView
+
+**Example 2: Returning User (Incomplete Onboarding)**
+1. User signed up, completed PersonalizationView, exited app
+2. Reopen app → ContentView (not NotificationTimeView!)
+3. Sign in → Checks Supabase → Has first_name but no notifications
+4. Navigate to NotificationTimeView ✅
+5. Continue from where they left off
+
+**Example 3: Returning User (Complete Onboarding)**
+1. User completed everything previously
+2. Reopen app → DashboardView directly ✅
+3. No need to sign in again (session persists)
+
+**Files Modified**: 2
+- `/glimpse/glimpseApp.swift` - Always show ContentView for incomplete onboarding
+- `/glimpse/Views/Onboarding/AuthView.swift` - Added onboarding check after sign up
+
+**Lines Added**: ~120
+**Lines Modified**: ~10
+
+---
+
+## ⚠️ CRITICAL - Missing INSERT Policy on Profiles Table
+
+**Issue**: Users get "new row violates row-level security policy for table 'profiles'" error when submitting PersonalizationView.
+
+**Cause**: The `profiles` table was missing an INSERT policy. Only SELECT and UPDATE policies existed.
+
+**Fix Required**: Add this SQL policy in Supabase dashboard → SQL Editor:
+
+```sql
+CREATE POLICY "Users can insert own profile"
+    ON profiles FOR INSERT
+    WITH CHECK (auth.uid() = id);
+```
+
+**Why This Happened**:
+- PersonalizationView uses `upsert()` which tries to INSERT if record doesn't exist
+- Without INSERT policy, RLS blocks the operation
+- The database schema documentation has been updated to include this policy
+
+**Updated Database Schema**: See "Database Schema Required" section below for complete profiles table setup with all three policies (SELECT, INSERT, UPDATE).
+
+---
+
+## ⚠️ UPDATE (2025-12-31) - Fix Stale Session Handling
+
+**Critical Fix**: App now properly handles deleted/invalid users by clearing session and showing welcome screen.
+
+**Problem**:
+- When user was deleted from Supabase but had a stale local session token
+- App would check session (token still exists locally)
+- Try to query user data from database (user doesn't exist)
+- Error would be caught and app would incorrectly show PersonalizationView
+- User would be stuck - can't sign up (has session) or continue (no data)
+
+**Root Cause**:
+- `checkOnboardingProgress()` catch block returned `.needsPersonalization` on any error
+- This included auth errors, deleted users, invalid sessions, etc.
+- No distinction between "incomplete onboarding" vs "invalid session"
+
+**Solution**:
+- Changed `checkOnboardingProgress()` to return `OnboardingState?` (optional)
+- Returns `nil` when there's an auth/database error (invalid session)
+- Added explicit check: if profile query returns empty array → user doesn't exist → return `nil`
+- `checkSession()` now detects nil state and:
+  1. Signs out the user (clears stale session)
+  2. Sets state to `.notStarted` (shows ContentView welcome screen)
+  3. User can now create a new account
+
+**Code Changes**:
+```swift
+// checkOnboardingProgress() now returns optional
+private func checkOnboardingProgress() async -> OnboardingState? {
+    do {
+        let profileResponse = try await client.database.from("profiles")...
+
+        // If no profile exists, user was deleted - session is invalid
+        guard !profileResponse.isEmpty else {
+            return nil
+        }
+
+        // Profile exists - check if first_name is populated
+        guard let profile = profileResponse.first,
+              let firstName = profile.first_name,
+              !firstName.isEmpty else {
+            return .needsPersonalization  // User exists but incomplete
+        }
+
+        // ... check notifications, goals
+    } catch {
+        // Return nil to indicate invalid session
+        return nil
+    }
+}
+
+// checkSession() handles nil state
+let state = await checkOnboardingProgress()
+if state == nil {
+    try? await SupabaseManager.shared.signOut()
+    onboardingState = .notStarted  // Show welcome screen
+    return
+}
+```
+
+**User Flow After Fix**:
+1. User deleted from Supabase but has stale token
+2. App checks session → token exists (stale)
+3. App tries to check onboarding → database error (user doesn't exist)
+4. Returns nil → App signs out
+5. Shows ContentView (welcome screen) ✅
+6. User can create new account
+
+**Files Modified**: 1
+- `/glimpse/glimpseApp.swift` - Fixed stale session handling
+
+**Lines Modified**: ~15
+
+---
+
+## ⚠️ UPDATE (2025-12-31) - Fix Back Button Not Working from GoalsSetupView
+
+**Bug Fix**: Fixed back button not working when navigating from NotificationTimeView to GoalsSetupView.
+
+**Problem**:
+- Clicking back button in GoalsSetupView did nothing
+- No navigation was occurring when Continue was tapped in NotificationTimeView
+
+**Root Cause**:
+- NotificationTimeView was missing the hidden NavigationLink
+- Had `.navigationDestination` modifier but no actual NavigationLink to trigger navigation
+- Without proper NavigationLink, the navigation stack wasn't being built correctly
+
+**Solution**:
+- Added hidden NavigationLink in NotificationTimeView
+- Removed redundant `.navigationDestination` modifier
+- Now properly pushes GoalsSetupView onto navigation stack
+- Back button (dismiss) now works correctly
+
+**Code Change** (NotificationTimeView.swift):
+```swift
+// Added before Continue button
+NavigationLink(destination: GoalsSetupView(), isActive: $navigateToGoals) {
+    EmptyView()
+}
+.hidden()
+
+// Removed
+.navigationDestination(isPresented: $navigateToGoals) {
+    GoalsSetupView()
+}
+```
+
+**Files Modified**: 1
+- `/glimpse/Views/Onboarding/NotificationTimeView.swift` - Added hidden NavigationLink
+
+---
+
+## ⚠️ UPDATE (2025-12-31) - Fix Black Screen Navigation Issue
+
+**Critical Fix**: Fixed black screen error caused by overly complex navigation logic.
+
+**Problem**:
+- App was showing black screen with warning sign on launch
+- Back button would loop back to the same error screen
+- Issue was caused by attempting to build complex navigation paths programmatically
+
+**Root Cause**:
+- Previous navigation implementation tried to build an entire navigation stack path
+- Started with ContentView (welcome screen) then pushed multiple onboarding views on top
+- This created invalid navigation states causing SwiftUI errors
+
+**Solution**:
+- Simplified to directly show the appropriate view based on onboarding state
+- Removed complex navigation path building logic
+- Each view is now the root of the NavigationStack when app launches
+- Forward navigation still works via NavigationLinks in each view
+
+**Code Changes**:
+```swift
+// BEFORE (complex navigation path)
+NavigationStack(path: $navigationPath) {
+    ContentView()
+        .navigationDestination(for: OnboardingDestination.self) { ... }
+        .onAppear { buildNavigationPath() }
+}
+
+// AFTER (simple state-based view)
+NavigationStack {
+    switch onboardingState {
+    case .notStarted: ContentView()
+    case .needsPersonalization: PersonalizationView()
+    case .needsNotifications: NotificationTimeView()
+    case .needsGoals: GoalsSetupView()
+    case .completed: DashboardView()
+    }
+}
+```
+
+**Note**: Back button functionality from mid-onboarding views will be addressed in future update.
+
+**Files Modified**: 1
+- `/glimpse/glimpseApp.swift` - Simplified navigation logic, removed navigation path building
+
+**Lines Removed**: ~50 (complex navigation code)
+**Lines Added**: ~15 (simple switch-based navigation)
+
+---
+
+## ⚠️ UPDATE (2025-12-31) - Fix Navigation Stack & Upsert Issues
+
+**Bug Fixes**: Fixed navigation back button and database upsert conflicts throughout onboarding.
+
+**Problems Fixed**:
+
+1. **Navigation Stack Issue**:
+   - Users couldn't navigate back from NotificationTimeView to PersonalizationView
+   - When app launched directly into mid-onboarding (e.g., NotificationTimeView), back button had nowhere to go
+   - Navigation history wasn't being built properly
+
+2. **PersonalizationView Upsert**:
+   - Using `.update()` instead of `.upsert()` could cause issues if profile doesn't exist
+   - Changed to upsert for consistency with other views
+
+3. **NotificationTimeView Upsert**:
+   - Navigating back and clicking Continue again caused: `duplicate key value violates unique constraint "notification_settings_user_id_key"`
+   - Upsert wasn't specifying conflict resolution column
+
+**Solutions Implemented**:
+
+1. **Proper Navigation Stack** (`glimpseApp.swift`):
+   - Added `OnboardingDestination` enum for type-safe navigation
+   - Build proper navigation path based on onboarding state
+   - When resuming at NotificationTimeView, stack includes PersonalizationView so back button works
+   - Users can now navigate back through all completed onboarding steps
+
+```swift
+// Navigation path is built based on state
+case .needsNotifications:
+    path = [.personalization, .notifications]  // Can go back to personalization
+case .needsGoals:
+    path = [.personalization, .notifications, .goals]  // Can go back through all
+```
+
+2. **PersonalizationView** - Changed to upsert:
+```swift
+// BEFORE
+.update(["first_name": firstName])
+.eq("id", value: userId.uuidString)
+
+// AFTER
+.upsert(profileData, onConflict: "id")
+```
+
+3. **NotificationTimeView** - Added conflict resolution:
+```swift
+// BEFORE
+.upsert(settings)
+
+// AFTER
+.upsert(settings, onConflict: "user_id")
+```
+
+**Files Modified**: 3
+- `/glimpse/glimpseApp.swift` - Fixed navigation stack building
+- `/glimpse/Views/Onboarding/PersonalizationView.swift` - Changed update to upsert
+- `/glimpse/Views/Onboarding/NotificationTimeView.swift` - Fixed upsert conflict resolution
+
+**Lines Added**: ~35
+**Lines Modified**: ~40
+
+---
+
+## ⚠️ UPDATE (2025-12-31) - Fix Incomplete Onboarding Edge Case
+
+**Critical Fix**: App now properly handles users who create an account but don't complete onboarding.
+
+**Problem Fixed**:
+- If user signed up but closed the app before completing PersonalizationView, NotificationTimeView, or GoalsSetupView
+- On app reopen, they would be sent to the welcome screen (ContentView)
+- Confusing user experience - they already have an account but can't easily continue
+
+**Solution Implemented**:
+- Added `OnboardingState` enum to track where user is in onboarding flow
+- App checks Supabase on launch to determine exact onboarding step
+- Resumes onboarding from the first incomplete step
+- No more confusion about "already have an account" errors
+
+**Onboarding States**:
+```swift
+enum OnboardingState {
+    case notStarted           // No account yet → ContentView (Welcome)
+    case needsPersonalization // Has account → PersonalizationView
+    case needsNotifications   // Has name → NotificationTimeView
+    case needsGoals          // Has notifications → GoalsSetupView
+    case completed           // Has everything → DashboardView
+}
+```
+
+**Detection Logic** (checks Supabase in order):
+1. Check if `profiles.first_name` exists → If no: PersonalizationView
+2. Check if `notification_settings` exists → If no: NotificationTimeView
+3. Check if `goals` exists → If no: GoalsSetupView
+4. If all exist → DashboardView
+
+**User Scenarios**:
+- **Scenario 1**: User signs up, closes app immediately → Reopens to PersonalizationView
+- **Scenario 2**: User completes name, closes app → Reopens to NotificationTimeView
+- **Scenario 3**: User sets notifications, closes app → Reopens to GoalsSetupView
+- **Scenario 4**: User completes everything → Always opens to DashboardView
+
+**Files Modified**: 1
+- `/glimpse/glimpseApp.swift` - Added onboarding state tracking and resume logic
+
+**Lines Added**: ~70
+**Lines Modified**: ~25
+
+---
+
+## ⚠️ UPDATE (2025-12-31) - Add Notification Permission Request
+
+**Feature Added**: NotificationTimeView now requests iOS notification permissions when user enables reminders.
+
+**Implementation**:
+- Added `UserNotifications` framework import
+- Request notification authorization when Continue is tapped with reminders enabled
+- Request permissions for: alert, sound, and badge
+- Shows informative error if permission is denied (but still continues to next screen)
+- User can enable notifications later in iOS Settings if they decline initially
+
+**Code Changes**:
+```swift
+// NEW function in NotificationTimeView.swift
+private func requestNotificationPermission() async -> Bool {
+    let center = UNUserNotificationCenter.current()
+    let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+    return granted
+}
+
+private func handleContinue() async {
+    // Request permission if reminders enabled
+    // Save settings to Supabase
+    // Navigate to goals setup
+}
+```
+
+**User Flow**:
+1. User enables "Enable daily reminders" toggle
+2. User taps "Continue"
+3. iOS system permission dialog appears
+4. User grants or denies permission
+5. Settings saved to Supabase regardless of choice
+6. Navigation to GoalsSetupView
+
+**Files Modified**: 1
+- `/glimpse/Views/Onboarding/NotificationTimeView.swift` - Added permission request
+
+**Lines Modified**: ~30
+**Lines Added**: ~35
+
+---
+
+## ⚠️ UPDATE (2025-12-31) - Fix Onboarding Check to Use Supabase
+
+**Critical Fix**: Sign in now checks Supabase database instead of UserDefaults to determine onboarding completion status.
+
+**Problem Fixed**:
+- Previously, SignInView checked local UserDefaults flag (`isOnboardingComplete`) to determine if user should go to Dashboard or continue onboarding
+- This was unreliable because the flag might not be synced with actual data in Supabase
+- Users who completed onboarding on another device would be sent back to PersonalizationView
+
+**Solution Implemented**:
+- Added `checkOnboardingStatus()` function that queries Supabase database
+- Checks if user has profile with `first_name` populated
+- Checks if user has at least one goal in the `goals` table
+- Only navigates to Dashboard if both conditions are met
+- Otherwise continues with onboarding from PersonalizationView
+
+**Code Changes**:
+```swift
+// NEW function in SignInView.swift
+private func checkOnboardingStatus() async -> Bool {
+    // Query profiles table for first_name
+    // Query goals table for user's goals
+    // Return true only if both exist
+}
+```
+
+**Navigation Logic**:
+- ✅ **Has profile + goals** → Dashboard (loads goals from Supabase)
+- ⏭️ **Missing profile or goals** → PersonalizationView (complete onboarding)
+
+**Files Modified**: 1
+- `/glimpse/Views/Onboarding/SignInView.swift` - Added Supabase onboarding check
+
+**Lines Added**: ~45
+
+---
+
+## ⚠️ UPDATE (2025-12-31) - Separate Sign In/Sign Up Views
+
+**Major Authentication Flow Changes**:
+- Created separate `SignInView.swift` for existing users
+- Updated `AuthView.swift` to be Sign Up only (no longer tries to sign in first)
+- Added navigation link "Already have an account? Sign In" on both screens
+- Sign In now properly only signs in (doesn't create new users)
+- Sign Up now properly only signs up (doesn't try to sign in first)
+- **Smart navigation**: Existing users with complete onboarding go directly to Dashboard
+
+**Files Created**: 1 additional
+- `/glimpse/Views/Onboarding/SignInView.swift` - Dedicated sign in page
+
+**Files Modified**: 1 additional
+- `AuthView.swift` - Changed to Sign Up only with navigation to Sign In
+
+---
+
 ## Summary
 
 This document tracks all changes made to integrate Supabase authentication and database functionality into the Glimpse app, replacing placeholder authentication and local UserDefaults storage with a full backend solution.
 
 ### Integration Overview
-- **Date Completed**: 2025-12-31
+- **Date Completed**: 2025-12-31 (Updated: 2025-12-31)
 - **Supabase Version**: supabase-swift 2.0.0+
 - **Authentication Method**: Email/Password (Apple and Google auth marked for future implementation)
 - **Database Tables Used**: `profiles`, `notification_settings`, `goals`
-- **Files Created**: 2
-- **Files Modified**: 6
-- **Total Lines Added**: ~300 lines
-- **Total Lines Modified**: ~150 lines
+- **Files Created**: 3 (SupabaseConfig, SupabaseManager, SignInView)
+- **Files Modified**: 6 (AuthView, PersonalizationView, NotificationTimeView, GoalsSetupView, GoalStorageManager, glimpseApp)
+- **Total Lines Added**: ~400 lines
+- **Total Lines Modified**: ~180 lines
 
 ---
 
@@ -89,52 +556,121 @@ let userId = try await SupabaseManager.shared.getCurrentUserId()
 
 ---
 
+### 3. `/glimpse/Views/Onboarding/SignInView.swift`
+
+**Purpose**: Dedicated sign in view for existing users (NEW - 2025-12-31 Update)
+
+**Key Features**:
+- Sign in only (does NOT create new users)
+- Error handling for invalid credentials
+- Loading states during authentication
+- **Smart navigation**: Dashboard if onboarding complete, PersonalizationView if incomplete
+- Links to Terms of Service and Privacy Policy
+
+**UI Elements**:
+- Title: "Welcome Back"
+- Subtitle: "Sign in to continue your journey."
+- Email input field
+- Password input (SecureField)
+- "Sign In" button with loading state
+- Back button to return to Sign Up
+
+**Authentication Flow** (UPDATED - now checks Supabase):
+```swift
+func signIn() {
+    // Only signs in - does NOT sign up
+    try await client.auth.signIn(email: email, password: password)
+
+    // Check Supabase for onboarding status
+    let hasCompletedOnboarding = await checkOnboardingStatus()
+
+    if hasCompletedOnboarding {
+        // Existing user with data in Supabase → Load goals and go to Dashboard
+        storageManager.loadGoals()
+        storageManager.completeOnboarding() // Sync local flag
+        navigateToDashboard = true
+    } else {
+        // User who signed up but didn't finish → Continue onboarding
+        navigateToPersonalization = true
+    }
+}
+
+private func checkOnboardingStatus() async -> Bool {
+    // Queries Supabase for profile with first_name
+    // Queries Supabase for user's goals
+    // Returns true only if both exist
+}
+```
+
+**Navigation Logic** (UPDATED):
+- ✅ **Has profile + goals in Supabase** → Dashboard (loads goals from Supabase)
+- ⏭️ **Missing profile or goals** → PersonalizationView (finish onboarding)
+
+**Error Messages**:
+- Invalid credentials: "Invalid email or password. Please try again."
+- No fallback to sign up (unlike old AuthView)
+
+**Progress Indicator**: 2/5 (Second dot active)
+
+**Lines**: ~300
+
+---
+
 ## Files Modified
 
-### 1. `/glimpse/Views/Onboarding/AuthView.swift`
+### 1. `/glimpse/Views/Onboarding/AuthView.swift` - UPDATED (2025-12-31)
 
-**Changes Made**:
-- ✅ Added error handling state variables
-- ✅ Implemented real email/password authentication
-- ✅ Added loading states to Continue button
-- ✅ Added error alert dialog
-- ✅ Updated auth functions with Supabase integration
+**Major Changes**:
+- ✅ Changed to Sign Up ONLY (no longer tries to sign in)
+- ✅ Title changed: "Welcome to Glimpse" → "Create Your Account"
+- ✅ Subtitle changed to reflect sign up purpose
+- ✅ Button text changed: "Continue" → "Create Account"
+- ✅ Function renamed: `signInWithEmail()` → `signUp()`
+- ✅ Removed fallback sign in logic
+- ✅ Added "Already have an account? Sign In" navigation link
 
-**State Variables Added**:
+**State Variables** (unchanged):
 ```swift
 @State private var errorMessage: String?
 @State private var showError = false
 ```
 
-**Authentication Flow**:
-1. Try to sign in with email/password
-2. If sign in fails → Try to sign up
-3. Check if email confirmation required
-4. Navigate to PersonalizationView on success
-5. Show error alert on failure
+**Updated Authentication Flow**:
+1. User enters email/password
+2. Taps "Create Account"
+3. Only calls `signUp()` (does NOT try sign in first)
+4. Check if email confirmation required
+5. Navigate to PersonalizationView on success
+6. Show error alert on failure
 
 **New Function Implementation**:
 ```swift
-func signInWithEmail() {
-    // Validates input
-    // Tries sign in first, then sign up if needed
-    // Handles email confirmation check
-    // Shows errors via alert
-    // Navigates on success
+func signUp() {
+    // Only signs up - does NOT sign in
+    try await client.auth.signUp(email: email, password: password)
+    // Check email confirmation
+    // Navigate or show confirmation message
 }
 ```
 
-**Apple/Google Auth**:
+**Navigation Added**:
+- "Already have an account? Sign In" link
+- Navigates to new SignInView
+- Shows on both initial screen and email auth form
+
+**Apple/Google Auth** (unchanged):
 - Marked as TODO for future implementation
 - Show "coming soon" error message when tapped
 
 **UI Changes**:
-- Continue button now shows ProgressView when loading
-- Button disabled during authentication
-- Error alert appears on auth failures
+- Title: "Create Your Account"
+- Subtitle: "Start your journey of gratitude and reflection."
+- Button: "Create Account" with ProgressView loading state
+- Navigation link to SignInView below button
+- Error alert appears on sign up failures
 
-**Lines Modified**: ~70
-**Lines Added**: ~45
+**Lines Modified**: ~90
+**Lines Added**: ~60
 
 ---
 
@@ -465,10 +1001,14 @@ CREATE TABLE profiles (
 -- Enable Row Level Security
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Policy: Users can only read/update their own profile
+-- Policy: Users can only read/insert/update their own profile
 CREATE POLICY "Users can view own profile"
     ON profiles FOR SELECT
     USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert own profile"
+    ON profiles FOR INSERT
+    WITH CHECK (auth.uid() = id);
 
 CREATE POLICY "Users can update own profile"
     ON profiles FOR UPDATE
@@ -560,28 +1100,51 @@ CREATE TRIGGER on_auth_user_created
 
 ---
 
-## Authentication Flow
+## Authentication Flow - UPDATED (2025-12-31)
 
-### Email/Password Sign In/Up Flow
+### Separate Sign Up and Sign In Flows
 
+**Sign Up Flow** (AuthView):
 ```
-User enters email + password
+User lands on AuthView (Sign Up page)
     ↓
-Tap Continue
+Tap "Continue with Email" or "Continue with Apple/Google"
     ↓
-Try to Sign In
+Enter email + password
     ↓
-    ├─ Success → Navigate to PersonalizationView
+Tap "Create Account"
+    ↓
+Call signUp() - ONLY creates new user
+    ↓
+    ├─ Success (no email confirmation) → Navigate to PersonalizationView
     │
-    └─ Failure (user doesn't exist)
-        ↓
-        Try to Sign Up
-        ↓
-        ├─ Success (no email confirmation) → Navigate to PersonalizationView
-        │
-        ├─ Success (needs confirmation) → Show alert "Check your email"
-        │
-        └─ Failure → Show error alert
+    ├─ Success (needs confirmation) → Show alert "Check your email"
+    │
+    └─ Failure (email exists/weak password) → Show error alert
+
+Optional: Tap "Already have an account? Sign In" → Navigate to SignInView
+```
+
+**Sign In Flow** (SignInView):
+```
+User taps "Sign In" link from AuthView
+    ↓
+Navigate to SignInView
+    ↓
+Enter email + password
+    ↓
+Tap "Sign In"
+    ↓
+Call signIn() - ONLY signs in existing user
+    ↓
+    ├─ Success → Check onboarding status
+    │   ├─ Onboarding complete → Navigate to Dashboard (load goals)
+    │   └─ Onboarding incomplete → Navigate to PersonalizationView
+    │
+    └─ Failure (invalid credentials) → Show error "Invalid email or password"
+
+Note: Does NOT create new users if credentials are wrong
+Note: Existing users skip onboarding and go straight to Dashboard
 ```
 
 ### Session Persistence
@@ -595,15 +1158,19 @@ Try to Sign In
 
 ## Data Flow Summary
 
-### Onboarding Flow with Supabase
+### Onboarding Flow with Supabase - UPDATED (2025-12-31)
 
 ```
 1. ContentView (Welcome)
     ↓
-2. AuthView
-    ├─ Email/Password → Supabase Auth
-    │   ├─ Sign In (existing user)
-    │   └─ Sign Up (new user)
+2. AuthView (Sign Up)
+    ├─ Email/Password → Supabase Auth signUp()
+    ├─ Apple Sign In (future)
+    ├─ Google Sign In (future)
+    └─ "Already have account?" → Navigate to SignInView
+    ↓
+2a. SignInView (if existing user) ← NEW
+    └─ Email/Password → Supabase Auth signIn()
     ↓
 3. PersonalizationView
     └─ Save first_name → profiles table
@@ -618,6 +1185,11 @@ Try to Sign In
 6. DashboardView
     └─ Load goals from Supabase
 ```
+
+**Key Changes**:
+- AuthView now only handles sign up
+- New SignInView handles sign in for existing users
+- Clear separation prevents accidental user creation
 
 ### Data Storage
 

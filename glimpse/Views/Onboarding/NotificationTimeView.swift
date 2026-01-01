@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 struct NotificationTimeView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -8,6 +9,7 @@ struct NotificationTimeView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var navigateToGoals = false
     
     // Generate array of dates representing each hour of the day
     private var hourOptions: [Date] {
@@ -157,9 +159,19 @@ struct NotificationTimeView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
-                
+
+                // Hidden NavigationLink for navigation
+                NavigationLink(destination: GoalsSetupView(), isActive: $navigateToGoals) {
+                    EmptyView()
+                }
+                .hidden()
+
                 // Continue button
-                NavigationLink(destination: GoalsSetupView()) {
+                Button(action: {
+                    Task {
+                        await handleContinue()
+                    }
+                }) {
                     Group {
                         if isLoading {
                             ProgressView()
@@ -179,11 +191,6 @@ struct NotificationTimeView: View {
                                     Color(red: 0.83, green: 0.58, blue: 0.49))
                     )
                 }
-                .simultaneousGesture(TapGesture().onEnded {
-                    Task {
-                        await saveNotificationSettings()
-                    }
-                })
                 .disabled(isLoading)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 50)
@@ -205,11 +212,46 @@ struct NotificationTimeView: View {
         let enabled: Bool
     }
 
-    private func saveNotificationSettings() async {
+    private func handleContinue() async {
         await MainActor.run {
             isLoading = true
         }
 
+        // Request notification permission if reminders are enabled
+        if enableReminders {
+            let granted = await requestNotificationPermission()
+
+            if !granted {
+                await MainActor.run {
+                    errorMessage = "Notification permission was denied. You can enable it later in Settings if you'd like to receive daily reminders."
+                    showError = true
+                }
+                // Still continue even if permission denied - user can enable later
+            }
+        }
+
+        // Save settings to Supabase
+        await saveNotificationSettings()
+
+        // Navigate to goals setup (loading state cleared by saveNotificationSettings)
+        await MainActor.run {
+            navigateToGoals = true
+        }
+    }
+
+    private func requestNotificationPermission() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+
+        do {
+            let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+            return granted
+        } catch {
+            print("Error requesting notification permission: \(error)")
+            return false
+        }
+    }
+
+    private func saveNotificationSettings() async {
         do {
             let userId = try await SupabaseManager.shared.client.auth.session.user.id
 
@@ -225,11 +267,11 @@ struct NotificationTimeView: View {
                 enabled: enableReminders
             )
 
-            // Upsert (insert or update if exists)
+            // Upsert (insert or update if exists) - specify user_id as conflict resolution column
             try await SupabaseManager.shared.client
                 .database
                 .from("notification_settings")
-                .upsert(settings)
+                .upsert(settings, onConflict: "user_id")
                 .execute()
 
             await MainActor.run {

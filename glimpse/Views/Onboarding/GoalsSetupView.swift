@@ -278,10 +278,6 @@ struct GoalsSetupView: View {
 
                 // Continue button
                 VStack {
-                    NavigationLink(destination: DashboardView(), isActive: $navigateToDashboard) {
-                        EmptyView()
-                    }
-
                     Button(action: {
                         saveGoalsAndCompleteOnboarding()
                     }) {
@@ -310,6 +306,9 @@ struct GoalsSetupView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 50)
             }
+        }
+        .navigationDestination(isPresented: $navigateToDashboard) {
+            DashboardView()
         }
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) { }
