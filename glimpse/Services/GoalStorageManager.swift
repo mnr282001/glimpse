@@ -30,35 +30,8 @@ class GoalStorageManager: ObservableObject {
     // MARK: - User Tier Management
 
     func loadUserTier() async {
-        do {
-            let userId = try await SupabaseManager.shared.client.auth.session.user.id
-
-            struct TierResponse: Decodable {
-                let tier: String?
-            }
-
-            let response: [TierResponse] = try await SupabaseManager.shared.client
-                .database
-                .from("profiles")
-                .select("tier")
-                .eq("id", value: userId.uuidString)
-                .execute()
-                .value
-
-            await MainActor.run {
-                if let tierString = response.first?.tier,
-                   let tier = UserTier(rawValue: tierString) {
-                    self.userTier = tier
-                } else {
-                    self.userTier = .free
-                }
-            }
-        } catch {
-            print("Error loading user tier: \(error)")
-            await MainActor.run {
-                self.userTier = .free
-            }
-        }
+        await PremiumEntitlementManager.shared.loadTier()
+        userTier = await PremiumEntitlementManager.shared.tier
     }
 
     var maxGoals: Int {

@@ -1,217 +1,219 @@
 import SwiftUI
 
 struct PremiumUpgradeView: View {
-    @Environment(\.colorScheme) var colorScheme
-    @Environment(\.dismiss) var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var storageManager = GoalStorageManager.shared
 
     @State private var isPurchasing = false
     @State private var showSuccess = false
     @State private var showError = false
     @State private var errorMessage: String?
+    @State private var animateHero = false
+
+
+    private var primaryText: Color {
+        colorScheme == .dark ? .white : Color(red: 0.15, green: 0.15, blue: 0.15)
+    }
+
+    private var accentGradient: LinearGradient {
+        LinearGradient(
+            colors: colorScheme == .dark
+            ? [Color(red: 0.38, green: 0.62, blue: 1.0),
+               Color(red: 0.25, green: 0.45, blue: 0.9)]
+            : [Color(red: 0.88, green: 0.65, blue: 0.55),
+               Color(red: 0.78, green: 0.55, blue: 0.45)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
 
     var body: some View {
         ZStack {
-            // Background color
-            (colorScheme == .dark ?
-             Color(red: 0.11, green: 0.12, blue: 0.15) :
-                Color(red: 1.0, green: 0.97, blue: 0.94))
-            .ignoresSafeArea()
+            background
 
             VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
-                            .frame(width: 32, height: 32)
-                    }
-
-                    Spacer()
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-                .padding(.bottom, 8)
+                header
 
                 ScrollView {
-                    VStack(spacing: 32) {
-                        // Premium badge
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            colorScheme == .dark ?
-                                                Color(red: 0.35, green: 0.58, blue: 1.0) :
-                                                Color(red: 0.83, green: 0.58, blue: 0.49),
-                                            colorScheme == .dark ?
-                                                Color(red: 0.45, green: 0.65, blue: 1.0) :
-                                                Color(red: 0.73, green: 0.48, blue: 0.39)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 100, height: 100)
-
-                            Image(systemName: "crown.fill")
-                                .font(.system(size: 44))
-                                .foregroundColor(.white)
-                        }
-                        .padding(.top, 16)
-
-                        // Title
-                        VStack(spacing: 12) {
-                            Text("Upgrade to Premium")
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
-                                .multilineTextAlignment(.center)
-
-                            Text("Unlock your full potential")
-                                .font(.system(size: 17))
-                                .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding(.horizontal, 32)
-
-                        // Features list
-                        VStack(spacing: 20) {
-                            FeatureRow(
-                                icon: "target",
-                                title: "10 Goals",
-                                description: "Track up to 10 goals instead of 3",
-                                colorScheme: colorScheme
-                            )
-
-                            FeatureRow(
-                                icon: "chart.line.uptrend.xyaxis",
-                                title: "Advanced Analytics",
-                                description: "Deep insights into your progress",
-                                colorScheme: colorScheme
-                            )
-
-                            FeatureRow(
-                                icon: "bell.badge.fill",
-                                title: "Custom Reminders",
-                                description: "Set multiple reminders per goal",
-                                colorScheme: colorScheme
-                            )
-
-                            FeatureRow(
-                                icon: "paintbrush.fill",
-                                title: "Custom Themes",
-                                description: "Personalize your experience",
-                                colorScheme: colorScheme
-                            )
-
-                            FeatureRow(
-                                icon: "icloud.fill",
-                                title: "Priority Support",
-                                description: "Get help when you need it",
-                                colorScheme: colorScheme
-                            )
-                        }
-                        .padding(.horizontal, 24)
-
-                        // Pricing
-                        VStack(spacing: 16) {
-                            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text("$4.99")
-                                    .font(.system(size: 48, weight: .bold))
-                                    .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
-
-                                Text("/month")
-                                    .font(.system(size: 17))
-                                    .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
-                            }
-
-                            Text("Cancel anytime")
-                                .font(.system(size: 15))
-                                .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.5))
-                        }
-                        .padding(.top, 8)
-
-                        // Upgrade button
-                        Button(action: {
-                            upgradeToPremium()
-                        }) {
-                            Group {
-                                if isPurchasing {
-                                    ProgressView()
-                                        .tint(.white)
-                                } else {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "crown.fill")
-                                            .font(.system(size: 20))
-
-                                        Text("Upgrade to Premium")
-                                            .font(.system(size: 18, weight: .semibold))
-                                    }
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(
-                                LinearGradient(
-                                    colors: [
-                                        colorScheme == .dark ?
-                                            Color(red: 0.35, green: 0.58, blue: 1.0) :
-                                            Color(red: 0.83, green: 0.58, blue: 0.49),
-                                        colorScheme == .dark ?
-                                            Color(red: 0.45, green: 0.65, blue: 1.0) :
-                                            Color(red: 0.73, green: 0.48, blue: 0.39)
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 28))
-                        }
-                        .disabled(isPurchasing)
-                        .opacity(isPurchasing ? 0.7 : 1.0)
-                        .padding(.horizontal, 24)
-
-                        // Terms
-                        Text("Terms and conditions apply")
-                            .font(.system(size: 13))
-                            .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.4))
+                    VStack(spacing: 40) {
+                        hero
+                        titleSection
+                        features
+                        pricing
+                        upgradeButton
+                        footnote
                     }
-                    .padding(.bottom, 40)
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, 48)
                 }
             }
         }
         .navigationBarHidden(true)
-        .alert("Success", isPresented: $showSuccess) {
-            Button("OK", role: .cancel) {
-                dismiss()
-            }
+        .alert("Welcome to Premium", isPresented: $showSuccess) {
+            Button("OK", role: .cancel) { dismiss() }
         } message: {
-            Text("Welcome to Premium! You can now add up to 10 goals.")
+            Text("You can now create up to 10 goals.")
         }
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text(errorMessage ?? "An error occurred")
+            Text(errorMessage ?? "Something went wrong.")
         }
     }
 
+    // MARK: - Sections
+
+    private var background: some View {
+        (colorScheme == .dark
+         ? Color(red: 0.10, green: 0.11, blue: 0.14)
+         : Color(red: 0.98, green: 0.96, blue: 0.94))
+        .ignoresSafeArea()
+    }
+
+    private var header: some View {
+        HStack {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(primaryText)
+                    .frame(width: 32, height: 32)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
+    }
+
+    private var hero: some View {
+        ZStack {
+            Circle()
+                .fill(accentGradient)
+                .frame(width: 88, height: 88)
+                .scaleEffect(animateHero ? 1.0 : 0.94)
+                .opacity(animateHero ? 1 : 0.85)
+
+            Image(systemName: "crown.fill")
+                .font(.system(size: 36, weight: .semibold))
+                .foregroundColor(.white)
+        }
+        .onAppear {
+            withAnimation(
+                .spring(response: 0.6, dampingFraction: 0.85)
+            ) {
+                animateHero = true
+            }
+        }
+    }
+
+    private var titleSection: some View {
+        VStack(spacing: 14) {
+            Text("Upgrade to Premium")
+                .font(.system(size: 30, weight: .bold))
+                .foregroundColor(primaryText)
+                .multilineTextAlignment(.center)
+
+            Text("More clarity. More progress.")
+                .font(.system(size: 17))
+                .foregroundColor(primaryText.opacity(0.55))
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    private var features: some View {
+        VStack(spacing: 22) {
+            PremiumFeatureRow(
+                icon: "target",
+                title: "Up to 10 goals",
+                description: "More room for what matters most."
+            )
+
+            PremiumFeatureRow(
+                icon: "chart.line.uptrend.xyaxis",
+                title: "Advanced insights",
+                description: "Understand your progress at a deeper level."
+            )
+
+            PremiumFeatureRow(
+                icon: "bell.badge.fill",
+                title: "Custom reminders",
+                description: "Stay on track with flexible notifications."
+            )
+
+            PremiumFeatureRow(
+                icon: "paintbrush.fill",
+                title: "Personalized themes",
+                description: "Make Glimpse feel like yours."
+            )
+
+            PremiumFeatureRow(
+                icon: "icloud.fill",
+                title: "Priority support",
+                description: "Help when you need it."
+            )
+        }
+    }
+
+    private var pricing: some View {
+        VStack(spacing: 6) {
+            Text("$4.99")
+                .font(.system(size: 44, weight: .bold))
+                .foregroundColor(primaryText)
+
+            Text("per month")
+                .font(.system(size: 15))
+                .foregroundColor(primaryText.opacity(0.5))
+        }
+        .padding(.top, 8)
+    }
+
+    private var upgradeButton: some View {
+        Button(action: upgradeToPremium) {
+            Group {
+                if isPurchasing {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    Text("Go Premium")
+                        .font(.system(size: 17, weight: .semibold))
+                }
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(accentGradient)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .shadow(
+                color: Color.black.opacity(colorScheme == .dark ? 0.4 : 0.15),
+                radius: 12,
+                y: 6
+            )
+        }
+        .disabled(isPurchasing)
+        .opacity(isPurchasing ? 0.7 : 1.0)
+        .padding(.top, 12)
+    }
+
+    private var footnote: some View {
+        Text("Cancel anytime.")
+            .font(.system(size: 13))
+            .foregroundColor(primaryText.opacity(0.45))
+    }
+
+    // MARK: - Upgrade Logic
+
     private func upgradeToPremium() {
         isPurchasing = true
-
-        // Haptic feedback
-        let impact = UIImpactFeedbackGenerator(style: .medium)
-        impact.impactOccurred()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
         Task {
             do {
-                // Get current user
                 let userId = try await SupabaseManager.shared.client.auth.session.user.id
 
-                // Update tier in Supabase
                 try await SupabaseManager.shared.client
                     .database
                     .from("profiles")
@@ -219,69 +221,21 @@ struct PremiumUpgradeView: View {
                     .eq("id", value: userId.uuidString)
                     .execute()
 
-                // Reload tier
                 await storageManager.loadUserTier()
 
                 await MainActor.run {
                     isPurchasing = false
-                    showSuccess = true
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                        showSuccess = true
+                    }
                 }
             } catch {
                 await MainActor.run {
                     isPurchasing = false
-                    errorMessage = "Failed to upgrade: \(error.localizedDescription)"
+                    errorMessage = error.localizedDescription
                     showError = true
                 }
             }
         }
     }
-}
-
-// Feature row component
-struct FeatureRow: View {
-    let icon: String
-    let title: String
-    let description: String
-    let colorScheme: ColorScheme
-
-    var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(colorScheme == .dark ?
-                          Color(red: 0.15, green: 0.18, blue: 0.24) :
-                            Color.white.opacity(0.5))
-                    .frame(width: 48, height: 48)
-
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(colorScheme == .dark ?
-                                     Color(red: 0.35, green: 0.58, blue: 1.0) :
-                                        Color(red: 0.83, green: 0.58, blue: 0.49))
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
-
-                Text(description)
-                    .font(.system(size: 15))
-                    .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
-            }
-
-            Spacer()
-        }
-        .padding(.vertical, 8)
-    }
-}
-
-#Preview("Light Mode") {
-    PremiumUpgradeView()
-        .preferredColorScheme(.light)
-}
-
-#Preview("Dark Mode") {
-    PremiumUpgradeView()
-        .preferredColorScheme(.dark)
 }
