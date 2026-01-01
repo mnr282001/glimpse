@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var showLogoutConfirmation = false
     @State private var isLoggingOut = false
     @State private var showWelcomeScreen = false
+    @State private var showPremiumUpgrade = false
 
     var body: some View {
         ZStack {
@@ -118,6 +119,162 @@ struct SettingsView: View {
                             .padding(.horizontal, 24)
                         }
 
+                        // Premium Section
+                        if storageManager.userTier == .free {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Premium")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
+                                    .textCase(.uppercase)
+                                    .padding(.horizontal, 24)
+
+                                Button(action: {
+                                    showPremiumUpgrade = true
+                                }) {
+                                    HStack(spacing: 16) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(
+                                                    LinearGradient(
+                                                        colors: [
+                                                            colorScheme == .dark ?
+                                                                Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                                                Color(red: 0.83, green: 0.58, blue: 0.49),
+                                                            colorScheme == .dark ?
+                                                                Color(red: 0.45, green: 0.65, blue: 1.0) :
+                                                                Color(red: 0.73, green: 0.48, blue: 0.39)
+                                                        ],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    )
+                                                )
+                                                .frame(width: 44, height: 44)
+
+                                            Image(systemName: "crown.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundColor(.white)
+                                        }
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Upgrade to Premium")
+                                                .font(.system(size: 17, weight: .semibold))
+                                                .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
+
+                                            Text("Unlock 10 goals and more")
+                                                .font(.system(size: 14))
+                                                .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
+                                        }
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14))
+                                            .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.4))
+                                    }
+                                    .padding(.horizontal, 24)
+                                    .frame(height: 56)
+                                }
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(colorScheme == .dark ?
+                                              Color(red: 0.15, green: 0.18, blue: 0.24) :
+                                                Color.white.opacity(0.5))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [
+                                                    colorScheme == .dark ?
+                                                        Color(red: 0.35, green: 0.58, blue: 1.0).opacity(0.5) :
+                                                        Color(red: 0.83, green: 0.58, blue: 0.49).opacity(0.5),
+                                                    colorScheme == .dark ?
+                                                        Color(red: 0.45, green: 0.65, blue: 1.0).opacity(0.5) :
+                                                        Color(red: 0.73, green: 0.48, blue: 0.39).opacity(0.5)
+                                                ],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            ),
+                                            lineWidth: 2
+                                        )
+                                )
+                                .padding(.horizontal, 24)
+                            }
+                        } else {
+                            // Premium badge for premium users
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Premium")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
+                                    .textCase(.uppercase)
+                                    .padding(.horizontal, 24)
+
+                                HStack(spacing: 16) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [
+                                                        colorScheme == .dark ?
+                                                            Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                                            Color(red: 0.83, green: 0.58, blue: 0.49),
+                                                        colorScheme == .dark ?
+                                                            Color(red: 0.45, green: 0.65, blue: 1.0) :
+                                                            Color(red: 0.73, green: 0.48, blue: 0.39)
+                                                    ],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .frame(width: 44, height: 44)
+
+                                        Image(systemName: "crown.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(.white)
+                                    }
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Premium Member")
+                                            .font(.system(size: 17, weight: .semibold))
+                                            .foregroundColor(colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17))
+
+                                        Text("Thank you for your support")
+                                            .font(.system(size: 14))
+                                            .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
+                                    }
+
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 24)
+                                .frame(height: 56)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(colorScheme == .dark ?
+                                              Color(red: 0.15, green: 0.18, blue: 0.24) :
+                                                Color.white.opacity(0.5))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [
+                                                    colorScheme == .dark ?
+                                                        Color(red: 0.35, green: 0.58, blue: 1.0).opacity(0.5) :
+                                                        Color(red: 0.83, green: 0.58, blue: 0.49).opacity(0.5),
+                                                    colorScheme == .dark ?
+                                                        Color(red: 0.45, green: 0.65, blue: 1.0).opacity(0.5) :
+                                                        Color(red: 0.73, green: 0.48, blue: 0.39).opacity(0.5)
+                                                ],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            ),
+                                            lineWidth: 2
+                                        )
+                                )
+                                .padding(.horizontal, 24)
+                            }
+                        }
+
                         // Logout Button
                         Button(action: {
                             showLogoutConfirmation = true
@@ -165,6 +322,9 @@ struct SettingsView: View {
         }
         .fullScreenCover(isPresented: $showWelcomeScreen) {
             ContentView()
+        }
+        .sheet(isPresented: $showPremiumUpgrade) {
+            PremiumUpgradeView()
         }
     }
 

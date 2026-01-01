@@ -4,6 +4,15 @@ struct DashboardView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var storageManager = GoalStorageManager.shared
     @State private var navigateToSettings = false
+    @State private var selectedGoalForSheet: Goal?
+    @State private var goalToEdit: Goal?
+    @State private var showEditView = false
+    @State private var showDeleteConfirmation = false
+    @State private var goalToDelete: Goal?
+    @State private var showAddGoalView = false
+    @State private var showPremiumUpgrade = false
+    @State private var errorMessage: String?
+    @State private var showError = false
 
     var body: some View {
         NavigationStack {
@@ -97,6 +106,34 @@ struct DashboardView: View {
                                     .padding(.horizontal, 40)
                             }
 
+                            // Add Goal Button
+                            Button(action: {
+                                if storageManager.canAddGoal {
+                                    showAddGoalView = true
+                                } else {
+                                    showPremiumUpgrade = true
+                                }
+                            }) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 24))
+
+                                    Text("Add Your First Goal")
+                                        .font(.system(size: 18, weight: .semibold))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 28)
+                                        .fill(colorScheme == .dark ?
+                                              Color(red: 0.35, green: 0.58, blue: 1.0) :
+                                                Color(red: 0.83, green: 0.58, blue: 0.49))
+                                )
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.top, 16)
+
                             Spacer()
                         }
                     } else {
@@ -111,7 +148,7 @@ struct DashboardView: View {
 
                                     Spacer()
 
-                                    Text("\(storageManager.goals.count)/3")
+                                    Text("\(storageManager.goals.count)/\(storageManager.maxGoals)")
                                         .font(.system(size: 17))
                                         .foregroundColor((colorScheme == .dark ? Color.white : Color(red: 0.17, green: 0.17, blue: 0.17)).opacity(0.6))
                                 }
@@ -121,7 +158,20 @@ struct DashboardView: View {
                                 // Goal cards
                                 VStack(spacing: 16) {
                                     ForEach(storageManager.goals) { goal in
-                                        GoalCardView(goal: goal)
+                                        GoalCardView(
+                                            goal: goal,
+                                            onTap: {
+                                                selectedGoalForSheet = goal
+                                            },
+                                            onEdit: {
+                                                goalToEdit = goal
+                                                showEditView = true
+                                            },
+                                            onDelete: {
+                                                goalToDelete = goal
+                                                showDeleteConfirmation = true
+                                            }
+                                        )
                                     }
                                 }
                                 .padding(.horizontal, 24)
@@ -130,16 +180,20 @@ struct DashboardView: View {
                         }
                     }
 
-                    // Add goal button (if less than 3 goals) - placeholder for future
-                    if storageManager.goals.count < 3 && !storageManager.goals.isEmpty {
+                    // Add goal button - always show but behavior depends on tier
+                    if !storageManager.goals.isEmpty {
                         Button(action: {
-                            // Future: Navigate to add goal screen
+                            if storageManager.canAddGoal {
+                                showAddGoalView = true
+                            } else {
+                                showPremiumUpgrade = true
+                            }
                         }) {
                             HStack(spacing: 8) {
-                                Image(systemName: "plus.circle.fill")
+                                Image(systemName: storageManager.canAddGoal ? "plus.circle.fill" : "crown.fill")
                                     .font(.system(size: 20))
 
-                                Text("Add Another Goal")
+                                Text(storageManager.canAddGoal ? "Add Another Goal" : "Upgrade to Add More")
                                     .font(.system(size: 17, weight: .semibold))
                             }
                             .foregroundColor(colorScheme == .dark ?
@@ -168,6 +222,71 @@ struct DashboardView: View {
             .navigationBarHidden(true)
             .navigationDestination(isPresented: $navigateToSettings) {
                 SettingsView()
+            }
+            .sheet(item: $selectedGoalForSheet) { goal in
+                GoalActionSheet(
+                    goal: goal,
+                    onEdit: {
+                        selectedGoalForSheet = nil
+                        goalToEdit = goal
+                        showEditView = true
+                    },
+                    onDelete: {
+                        selectedGoalForSheet = nil
+                        goalToDelete = goal
+                        showDeleteConfirmation = true
+                    }
+                )
+            }
+            .sheet(isPresented: $showEditView) {
+                if let goal = goalToEdit {
+                    EditGoalView(goal: goal) { updatedGoal in
+                        Task {
+                            await storageManager.updateGoal(updatedGoal)
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showAddGoalView) {
+                AddGoalView { newGoal in
+                    Task {
+                        do {
+                            try await storageManager.addGoal(newGoal)
+                        } catch {
+                            errorMessage = error.localizedDescription
+                            showError = true
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showPremiumUpgrade) {
+                PremiumUpgradeView()
+            }
+            .alert("Delete Goal", isPresented: $showDeleteConfirmation) {
+                Button("Cancel", role: .cancel) {
+                    goalToDelete = nil
+                }
+                Button("Delete", role: .destructive) {
+                    if let goal = goalToDelete {
+                        Task {
+                            await storageManager.deleteGoal(goal)
+                        }
+                    }
+                    goalToDelete = nil
+                }
+            } message: {
+                if let goal = goalToDelete {
+                    Text("Are you sure you want to delete \"\(goal.title)\"? This action cannot be undone.")
+                }
+            }
+            .alert("Error", isPresented: $showError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage ?? "An error occurred")
+            }
+            .task {
+                // Load user tier when view appears
+                await storageManager.loadUserTier()
             }
         }
     }

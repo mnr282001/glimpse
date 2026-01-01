@@ -92,6 +92,9 @@ struct glimpseApp: App {
                                 DashboardView()
                                     .onAppear {
                                         storageManager.loadGoals()
+                                        Task {
+                                            await storageManager.loadUserTier()
+                                        }
                                     }
                             }
                         }

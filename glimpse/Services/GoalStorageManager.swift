@@ -21,9 +21,52 @@ class GoalStorageManager: ObservableObject {
 
     @Published var goals: [Goal] = []
     @Published var isLoadingGoals: Bool = false
+    @Published var userTier: UserTier = .free
 
     private init() {
         // Don't load goals in init - will be loaded when user is authenticated
+    }
+
+    // MARK: - User Tier Management
+
+    func loadUserTier() async {
+        do {
+            let userId = try await SupabaseManager.shared.client.auth.session.user.id
+
+            struct TierResponse: Decodable {
+                let tier: String?
+            }
+
+            let response: [TierResponse] = try await SupabaseManager.shared.client
+                .database
+                .from("profiles")
+                .select("tier")
+                .eq("id", value: userId.uuidString)
+                .execute()
+                .value
+
+            await MainActor.run {
+                if let tierString = response.first?.tier,
+                   let tier = UserTier(rawValue: tierString) {
+                    self.userTier = tier
+                } else {
+                    self.userTier = .free
+                }
+            }
+        } catch {
+            print("Error loading user tier: \(error)")
+            await MainActor.run {
+                self.userTier = .free
+            }
+        }
+    }
+
+    var maxGoals: Int {
+        return userTier.maxGoals
+    }
+
+    var canAddGoal: Bool {
+        return goals.count < maxGoals
     }
 
     // MARK: - Goals Management
@@ -79,24 +122,115 @@ class GoalStorageManager: ObservableObject {
         }
     }
 
-    func addGoal(_ goal: Goal) {
-        var updatedGoals = goals
-        updatedGoals.append(goal)
-        saveGoals(updatedGoals)
-    }
+    func addGoal(_ goal: Goal) async throws {
+        guard canAddGoal else {
+            throw NSError(
+                domain: "GoalStorageManager",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "You've reached the maximum number of goals for your plan (\(maxGoals) goals)."]
+            )
+        }
 
-    func updateGoal(_ goal: Goal) {
-        var updatedGoals = goals
-        if let index = updatedGoals.firstIndex(where: { $0.id == goal.id }) {
-            updatedGoals[index] = goal
-            saveGoals(updatedGoals)
+        do {
+            let userId = try await SupabaseManager.shared.client.auth.session.user.id
+
+            // Insert into Supabase
+            struct GoalInsert: Encodable {
+                let id: String
+                let user_id: String
+                let title: String
+                let category: String
+                let created_at: String
+                let updated_at: String
+            }
+
+            let goalData = GoalInsert(
+                id: goal.id.uuidString,
+                user_id: userId.uuidString,
+                title: goal.title,
+                category: goal.category.rawValue,
+                created_at: ISO8601DateFormatter().string(from: goal.createdAt),
+                updated_at: ISO8601DateFormatter().string(from: goal.updatedAt)
+            )
+
+            try await SupabaseManager.shared.client
+                .database
+                .from("goals")
+                .insert(goalData)
+                .execute()
+
+            // Update local state
+            await MainActor.run {
+                var updatedGoals = goals
+                updatedGoals.append(goal)
+                self.goals = updatedGoals
+            }
+        } catch {
+            print("Error adding goal: \(error)")
+            throw error
         }
     }
 
-    func deleteGoal(_ goal: Goal) {
-        var updatedGoals = goals
-        updatedGoals.removeAll { $0.id == goal.id }
-        saveGoals(updatedGoals)
+    func updateGoal(_ goal: Goal) async {
+        do {
+            let userId = try await SupabaseManager.shared.client.auth.session.user.id
+
+            // Update in Supabase
+            struct GoalUpdate: Encodable {
+                let title: String
+                let category: String
+                let updated_at: String
+            }
+            
+            let goalData = GoalUpdate(
+                title: goal.title,
+                category: goal.category.rawValue,
+                updated_at: ISO8601DateFormatter().string(from: goal.updatedAt)
+            )
+
+            try await SupabaseManager.shared.client
+                .database
+                .from("goals")
+                .update(goalData)
+                .eq("id", value: goal.id.uuidString)
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+
+            // Update local state
+            await MainActor.run {
+                var updatedGoals = goals
+                if let index = updatedGoals.firstIndex(where: { $0.id == goal.id }) {
+                    updatedGoals[index] = goal
+                    self.goals = updatedGoals
+                }
+            }
+        } catch {
+            print("Error updating goal: \(error)")
+        }
+    }
+
+    func deleteGoal(_ goal: Goal) async {
+        do {
+            let userId = try await SupabaseManager.shared.client.auth.session.user.id
+
+            // Delete from Supabase
+            try await SupabaseManager.shared.client
+                .database
+                .from("goals")
+                .delete()
+                .eq("id", value: goal.id.uuidString)
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+
+            // Update local state
+            await MainActor.run {
+                var updatedGoals = goals
+                updatedGoals.removeAll { $0.id == goal.id }
+                self.goals = updatedGoals
+            }
+        } catch {
+            print("Error deleting goal: \(error)")
+        }
     }
 
     // MARK: - Onboarding
