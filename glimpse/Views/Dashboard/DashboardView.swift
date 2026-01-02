@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var storageManager = GoalStorageManager.shared
+    @StateObject private var reflectionManager = ReflectionManager.shared
     @State private var navigateToSettings = false
     @State private var selectedGoalForSheet: Goal?
     @State private var goalToEdit: Goal?
@@ -20,6 +21,20 @@ struct DashboardView: View {
         colorScheme == .dark
         ? Color(red: 0.35, green: 0.58, blue: 1.0)
         : Color(red: 0.83, green: 0.58, blue: 0.49)
+    }
+
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : Color(red: 0.17, green: 0.17, blue: 0.17)
+    }
+
+    private var secondaryTextColor: Color {
+        primaryTextColor.opacity(0.6)
+    }
+
+    private var cardBackgroundColor: Color {
+        colorScheme == .dark ?
+            Color(red: 0.15, green: 0.18, blue: 0.24) :
+            Color.white.opacity(0.7)
     }
 
     private var addButtonBackground: some View {
@@ -245,6 +260,56 @@ struct DashboardView: View {
                                     }
                                 }
                                 .padding(.horizontal, 24)
+                                .padding(.bottom, 16)
+
+                                // Today's reflection status
+                                VStack(spacing: 16) {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Today's Reflections")
+                                                .font(.system(size: 18, weight: .semibold))
+                                                .foregroundColor(primaryTextColor)
+
+                                            if reflectionManager.allGoalsCompleted(for: storageManager.goals) {
+                                                HStack(spacing: 6) {
+                                                    Image(systemName: "checkmark.circle.fill")
+                                                        .foregroundColor(.green)
+                                                    Text("All complete! 🎉")
+                                                        .font(.system(size: 14))
+                                                        .foregroundColor(secondaryTextColor)
+                                                }
+                                            } else {
+                                                let percentage = reflectionManager.completionPercentage(for: storageManager.goals)
+                                                let completed = Int(Double(storageManager.goals.count) * percentage)
+                                                let total = storageManager.goals.count
+
+                                                Text("\(completed)/\(total) goals reflected on")
+                                                    .font(.system(size: 14))
+                                                    .foregroundColor(secondaryTextColor)
+                                            }
+                                        }
+
+                                        Spacer()
+
+                                        // Reflect button
+                                        NavigationLink(destination: DailyReflectionsView()) {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "pencil.circle.fill")
+                                                Text(reflectionManager.allGoalsCompleted(for: storageManager.goals) ? "Review" : "Reflect")
+                                            }
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 20)
+                                            .padding(.vertical, 12)
+                                            .background(accentColor)
+                                            .cornerRadius(20)
+                                        }
+                                    }
+                                    .padding(16)
+                                    .background(cardBackgroundColor)
+                                    .cornerRadius(12)
+                                }
+                                .padding(.horizontal, 24)
                                 .padding(.bottom, 24)
                             }
                         }
@@ -399,6 +464,8 @@ struct DashboardView: View {
             .task {
                 // Load user tier when view appears
                 await storageManager.loadUserTier()
+                // Load today's reflections
+                await reflectionManager.loadTodayReflections(for: storageManager.goals)
             }
         }
     }

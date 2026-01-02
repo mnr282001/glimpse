@@ -10,6 +10,7 @@ struct NotificationTimeView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var navigateToGoals = false
+    @StateObject private var notificationManager = NotificationManager.shared
     
     // Generate array of dates representing each hour of the day
     private var hourOptions: [Date] {
@@ -253,6 +254,19 @@ struct NotificationTimeView: View {
 
     private func saveNotificationSettings() async {
         do {
+            // Request notification permission if not already granted
+            if enableReminders && !notificationManager.isAuthorized {
+                let granted = await notificationManager.requestAuthorization()
+                if !granted {
+                    await MainActor.run {
+                        errorMessage = "Please enable notifications in Settings to receive daily reminders."
+                        showError = true
+                        isLoading = false
+                    }
+                    return
+                }
+            }
+
             let userId = try await SupabaseManager.shared.client.auth.session.user.id
 
             // Extract time components
@@ -273,6 +287,11 @@ struct NotificationTimeView: View {
                 .from("notification_settings")
                 .upsert(settings, onConflict: "user_id")
                 .execute()
+
+            // Schedule the actual notification
+            if enableReminders {
+                await notificationManager.scheduleDailyNotification(at: selectedTime, enabled: true)
+            }
 
             await MainActor.run {
                 isLoading = false
