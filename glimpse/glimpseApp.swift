@@ -57,9 +57,15 @@ struct LoadingView: View {
 @main
 struct glimpseApp: App {
     @StateObject private var storageManager = GoalStorageManager.shared
+    @StateObject private var notificationManager = NotificationManager.shared
     @State private var isCheckingSession = true
     @State private var hasActiveSession = false
     @State private var onboardingState: OnboardingState = .notStarted
+    @State private var showReflections = false
+    @State private var showNotificationSplash = false
+
+    // App delegate for handling notifications
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     // MARK: - Debug Settings
     // Set to true to reset onboarding on every app launch (for testing)
@@ -75,34 +81,59 @@ struct glimpseApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if isCheckingSession {
-                    // Show loading screen while checking session
-                    LoadingView()
-                } else {
-                    // Show appropriate view based on onboarding state
-                    NavigationStack {
-                        Group {
-                            switch onboardingState {
-                            case .notStarted, .needsPersonalization, .needsNotifications, .needsGoals:
-                                // Always show ContentView for incomplete onboarding
-                                // User will sign in/up and resume from their last step
-                                ContentView()
-                            case .completed:
-                                DashboardView()
-                                    .onAppear {
-                                        storageManager.loadGoals()
-                                        Task {
-                                            await storageManager.loadUserTier()
+            ZStack {
+                Group {
+                    if isCheckingSession {
+                        // Show loading screen while checking session
+                        LoadingView()
+                    } else {
+                        // Show appropriate view based on onboarding state
+                        NavigationStack {
+                            Group {
+                                switch onboardingState {
+                                case .notStarted, .needsPersonalization, .needsNotifications, .needsGoals:
+                                    // Always show ContentView for incomplete onboarding
+                                    // User will sign in/up and resume from their last step
+                                    ContentView()
+                                case .completed:
+                                    DashboardView()
+                                        .onAppear {
+                                            storageManager.loadGoals()
+                                            Task {
+                                                await storageManager.loadUserTier()
+                                            }
+
+                                            // Check if we should show splash (from notification tap when app was closed/backgrounded)
+                                            checkForPendingSplash(immediate: false)
                                         }
-                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-            .task {
-                await checkSession()
+                .task {
+                    await checkSession()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .checkReflectionSplashFlag)) { _ in
+                    // Check for pending splash when notification event fires
+                    checkForPendingSplash(immediate: true)
+                }
+                .sheet(isPresented: $showReflections) {
+                    DailyReflectionsView()
+                }
+
+                // Notification splash overlay - appears on top of everything
+                if showNotificationSplash {
+                    NotificationSplashView {
+                        // After animation completes, hide splash and show reflections
+                        print("🎯 Splash animation completed - hiding splash and showing reflections")
+                        showNotificationSplash = false
+                        showReflections = true
+                        print("📊 State updated: showNotificationSplash=false, showReflections=true")
+                    }
+                    .transition(.opacity)
+                    .zIndex(999)
+                }
             }
         }
     }
@@ -218,6 +249,37 @@ struct glimpseApp: App {
             print("Error checking onboarding progress: \(error)")
             // Return nil to indicate session is invalid (user deleted, auth error, etc.)
             return nil
+        }
+    }
+
+    // MARK: - Notification Splash Handling
+
+    private func checkForPendingSplash(immediate: Bool) {
+        // Check if we came from a notification tap
+        let flagValue = UserDefaults.standard.bool(forKey: "shouldShowReflectionSplash")
+        print("🔍 Checking splash flag: \(flagValue), immediate: \(immediate)")
+
+        if flagValue {
+            // Clear the flag immediately to prevent double-triggering
+            UserDefaults.standard.set(false, forKey: "shouldShowReflectionSplash")
+            print("✅ Flag cleared, preparing to show splash")
+
+            // IMPORTANT: Clear any existing reflections state
+            showReflections = false
+
+            if immediate {
+                // No delay - notification event fired, show splash now
+                print("⚡ Showing splash immediately")
+                showNotificationSplash = true
+            } else {
+                // Small delay to ensure dashboard is fully loaded (for app launch case)
+                print("⏱️ Showing splash with 0.1s delay")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    showNotificationSplash = true
+                }
+            }
+        } else {
+            print("❌ Flag not set or already cleared")
         }
     }
 }
