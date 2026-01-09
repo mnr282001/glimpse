@@ -1,2 +1,20 @@
 glimpse/Config/SupabaseConfig.swift
 Secrets.xcconfig
+
+# Xcode User Data
+xcuserdata/
+
+# Sensitive Configuration Files
+**/SupabaseConfig.swift
+Secrets.xcconfig
+**/Config.swift
+**/Secrets.swift
+**/APIKeys.swift
+**/*Config.swift
+**/*Secret*.swift
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
