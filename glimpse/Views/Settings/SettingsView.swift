@@ -15,6 +15,7 @@ struct SettingsView: View {
     @State private var countdownTimer: Timer?
     @State private var showTestError = false
     @State private var testErrorMessage: String?
+    @State private var showComingSoon = false
 
     var body: some View {
         ZStack {
@@ -220,7 +221,7 @@ struct SettingsView: View {
                                     .padding(.horizontal, 24)
 
                                 Button(action: {
-                                    showPremiumUpgrade = true
+                                    showComingSoon = true
                                 }) {
                                     HStack(spacing: 16) {
                                         ZStack {
@@ -414,8 +415,8 @@ struct SettingsView: View {
         .fullScreenCover(isPresented: $showWelcomeScreen) {
             ContentView()
         }
-        .sheet(isPresented: $showPremiumUpgrade) {
-            PremiumUpgradeView()
+        .sheet(isPresented: $showComingSoon) {  // Changed from showPremiumUpgrade
+            PremiumComingSoonView()
         }
         .alert("Test Notification Error", isPresented: $showTestError) {
             Button("OK", role: .cancel) { }
