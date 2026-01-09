@@ -7,6 +7,10 @@
 
 import Foundation
 import Supabase
+enum SupabaseConfig {
+    static let url = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String ?? ""
+    static let publishableKey = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_PUBLISHABLE_KEY") as? String ?? ""
+}
 
 /// Singleton manager for Supabase client and authentication
 class SupabaseManager {
