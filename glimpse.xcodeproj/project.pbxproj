@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		260D0C932F0614890067C7CA /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 260D0C922F0614890067C7CA /* Supabase */; };
+		266DD60F2F10B1850093545B /* Secrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 266DD60E2F10B1850093545B /* Secrets.xcconfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,6 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		266DD60E2F10B1850093545B /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		B8863F6C2ECC05F500A842F4 /* glimpse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = glimpse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B8863F7C2ECC05F600A842F4 /* glimpseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = glimpseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B8863F862ECC05F600A842F4 /* glimpseUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = glimpseUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -92,6 +94,7 @@
 				B8863F892ECC05F600A842F4 /* glimpseUITests */,
 				260D0C912F0614890067C7CA /* Frameworks */,
 				B8863F6D2ECC05F500A842F4 /* Products */,
+				266DD60E2F10B1850093545B /* Secrets.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -229,6 +232,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				266DD60F2F10B1850093545B /* Secrets.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -288,6 +292,7 @@
 /* Begin XCBuildConfiguration section */
 		B8863F8E2ECC05F600A842F4 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 266DD60E2F10B1850093545B /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -351,6 +356,7 @@
 		};
 		B8863F8F2ECC05F600A842F4 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 266DD60E2F10B1850093545B /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -407,6 +413,7 @@
 		};
 		B8863F912ECC05F600A842F4 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 266DD60E2F10B1850093545B /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -437,6 +444,7 @@
 		};
 		B8863F922ECC05F600A842F4 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 266DD60E2F10B1850093545B /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -467,6 +475,7 @@
 		};
 		B8863F942ECC05F600A842F4 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 266DD60E2F10B1850093545B /* Secrets.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -485,6 +494,7 @@
 		};
 		B8863F952ECC05F600A842F4 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 266DD60E2F10B1850093545B /* Secrets.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -503,6 +513,7 @@
 		};
 		B8863F972ECC05F600A842F4 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 266DD60E2F10B1850093545B /* Secrets.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -519,6 +530,7 @@
 		};
 		B8863F982ECC05F600A842F4 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 266DD60E2F10B1850093545B /* Secrets.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
